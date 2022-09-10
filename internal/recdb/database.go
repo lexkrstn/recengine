@@ -83,7 +83,6 @@ func Open(fileName string, entryType [8]byte) (*os.File, error) {
 		}
 		return nil, fmt.Errorf("Failed to open database file: %v", err)
 	}
-
 	return file, err
 }
 
@@ -91,7 +90,7 @@ func Open(fileName string, entryType [8]byte) (*os.File, error) {
 func WritePrefix(writer io.Writer) (int, error) {
 	n, err := writer.Write(Prefix[:])
 	if err != nil {
-		return 0, fmt.Errorf("Failed to write RECDB header: %v", err)
+		return 0, fmt.Errorf("Failed to write RECDB prefix: %v", err)
 	}
 	return n, err
 }
