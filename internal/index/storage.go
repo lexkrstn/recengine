@@ -2,6 +2,7 @@ package index
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,8 @@ import (
 
 // Database index storage.
 type IndexStorage struct {
-	file       *os.File
+	file       io.ReadWriteSeeker
+	closer     io.Closer
 	indices    map[uint64]uint64
 	offsets    map[uint64]int64
 	writer     *bufio.Writer
@@ -18,60 +20,73 @@ type IndexStorage struct {
 
 // Opens an index file by the specified path. If the file doesn't exist yet
 // it will be created.
-func Open(filePath string) (*IndexStorage, error) {
-	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+func OpenFile(filePath string) (*IndexStorage, error) {
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		if os.IsNotExist(err) {
-			file, err = create(filePath)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to create index file: %v", err)
-			}
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
+	store, err := Open(file, file)
+	return store, err
+}
+
+// Opens an index file by the specified path. If the file doesn't exist yet
+// it will be created.
+func Open(file io.ReadWriteSeeker, closer io.Closer) (*IndexStorage, error) {
 	storage := &IndexStorage{
 		file,
+		closer,
 		make(map[uint64]uint64),
 		make(map[uint64]int64),
 		bufio.NewWriter(file),
 		0,
 	}
-	err = storage.load()
+	size, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
-		file.Close()
-		return nil, fmt.Errorf("Failed to load index: %v", err)
+		if closer != nil {
+			closer.Close()
+		}
+		return nil, err
+	}
+	if size > 0 {
+		err = storage.load()
+		if err != nil {
+			if closer != nil {
+				closer.Close()
+			}
+			return nil, fmt.Errorf("Failed to load index: %v", err)
+		}
+	} else {
+		err = storage.create()
+		if err != nil {
+			if closer != nil {
+				closer.Close()
+			}
+			return nil, fmt.Errorf("Failed to load index: %v", err)
+		}
 	}
 	return storage, nil
 }
 
 // Creates a new index file by the specified path.
-func create(filePath string) (*os.File, error) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open index file: %v", err)
-	}
-	writer := bufio.NewWriter(file)
+func (s *IndexStorage) create() error {
+	writer := bufio.NewWriter(s.file)
 	// Prefix
-	_, err = writePrefix(writer)
+	_, err := writePrefix(writer)
 	if err != nil {
-		file.Close()
-		return nil, fmt.Errorf("Failed to write index prefix: %v", err)
+		return fmt.Errorf("Failed to write index prefix: %v", err)
 	}
 	// Header
-	header := header{version, 0, 0}
+	header := header{version, 1, 0}
 	_, err = writeHeader(&header, writer)
 	if err != nil {
-		file.Close()
-		return nil, fmt.Errorf("Failed to write index header: %v", err)
+		return fmt.Errorf("Failed to write index header: %v", err)
 	}
 	// Flush
 	err = writer.Flush()
 	if err != nil {
-		file.Close()
-		return nil, err
+		return fmt.Errorf("Failed to flush writer: %v", err)
 	}
-	return file, nil
+	return nil
 }
 
 // Loads the index file into memory.
@@ -81,6 +96,7 @@ func (s *IndexStorage) load() error {
 		return err
 	}
 	reader := bufio.NewReader(s.file)
+	// Load header
 	_, err = readPrefix(reader)
 	if err != nil {
 		return fmt.Errorf("Failed to read index prefix: %v", err)
@@ -91,12 +107,14 @@ func (s *IndexStorage) load() error {
 		return fmt.Errorf("Failed to read index header: %v", err)
 	}
 	if header.locked != 0 {
-		return fmt.Errorf("Broken index file: %s", s.file.Name())
+		return errors.New("Broken index file (after unexpected termination)")
 	}
-	err = setLocked(true, s.file)
+	// Lock
+	err = WriteLocked(true, s.file)
 	if err != nil {
-		return fmt.Errorf("Failed to set file lock: %v", err)
+		return fmt.Errorf("Failed to write file lock: %v", err)
 	}
+	// Load entries
 	entry := entry{}
 	offset := int64(entriesOffset)
 	var size int
@@ -118,28 +136,45 @@ func (s *IndexStorage) load() error {
 
 // Closes the storage file.
 func (s *IndexStorage) Close() error {
-	header := header{version, 0, uint32(len(s.offsets))}
+	s.saveHeader(false)
+	if s.closer != nil {
+		return s.closer.Close()
+	}
+	return nil
+}
+
+// Saves the header corresponding to the current state of the storage.
+func (s *IndexStorage) saveHeader(locked bool) error {
+	lockedByte := byte(0)
+	if locked {
+		lockedByte = 1
+	}
+	header := header{version, lockedByte, uint32(len(s.offsets))}
 	_, err := s.file.Seek(int64(len(prefix)), io.SeekStart)
 	if err != nil {
-		s.file.Close()
-		return fmt.Errorf("Failed to seek in %s: %v", s.file.Name(), err)
+		if s.closer != nil {
+			s.closer.Close()
+		}
+		return fmt.Errorf("Failed to seek: %v", err)
 	}
 	_, err = writeHeader(&header, s.file)
 	if err != nil {
-		s.file.Close()
+		if s.closer != nil {
+			s.closer.Close()
+		}
 		return fmt.Errorf("Failed to write index header: %v", err)
 	}
-	return s.file.Close()
+	return nil
 }
 
 // Returns the index associated with the specified ID.
-func (s *IndexStorage) GetIndex(id uint64) (uint64, bool) {
+func (s *IndexStorage) Get(id uint64) (uint64, bool) {
 	idx, ok := s.indices[id]
 	return idx, ok
 }
 
 // Associates an index with an ID.
-func (s *IndexStorage) PutIndex(id uint64, index uint64) error {
+func (s *IndexStorage) Put(id uint64, index uint64) error {
 	// Update the in-memory map
 	_, hadIndex := s.indices[id]
 	s.indices[id] = index
@@ -168,7 +203,7 @@ func (s *IndexStorage) PutIndex(id uint64, index uint64) error {
 }
 
 // Removes an index from the database.
-func (s *IndexStorage) RemoveIndex(id uint64) error {
+func (s *IndexStorage) Remove(id uint64) error {
 	if _, hasIndex := s.indices[id]; !hasIndex {
 		return nil
 	}

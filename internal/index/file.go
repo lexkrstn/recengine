@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"os"
 	"recengine/internal/helpers"
 	"reflect"
 )
@@ -49,12 +48,12 @@ func writePrefix(writer io.Writer) (int, error) {
 
 // Reads the file prefix, aka "Magic number", which verifies type of the file.
 func readPrefix(reader io.Reader) (int, error) {
-	buffer := make([]byte, 0, len(prefix))
+	buffer := make([]byte, len(prefix))
 	n, err := helpers.ReadFullLength(buffer, reader)
 	if err != nil {
 		return n, err
 	}
-	if !reflect.DeepEqual(buffer, prefix) {
+	if !reflect.DeepEqual(buffer, prefix[:]) {
 		return n, errors.New("Not an index file")
 	}
 	return n, nil
@@ -63,6 +62,10 @@ func readPrefix(reader io.Reader) (int, error) {
 // Writes file header (without the prefix).
 func writeHeader(header *header, writer io.Writer) (int, error) {
 	err := binary.Write(writer, binary.BigEndian, header.version)
+	if err != nil {
+		return 0, err
+	}
+	err = binary.Write(writer, binary.BigEndian, header.locked)
 	if err != nil {
 		return 0, err
 	}
@@ -75,13 +78,14 @@ func writeHeader(header *header, writer io.Writer) (int, error) {
 
 // Reads database header (without the prefix).
 func readHeader(header *header, reader io.Reader) (int, error) {
-	buffer := make([]byte, 0, headerSize)
+	buffer := make([]byte, headerSize)
 	n, err := helpers.ReadFullLength(buffer, reader)
 	if err != nil {
 		return n, err
 	}
 	header.version = buffer[0]
-	header.numEntries = binary.BigEndian.Uint32(buffer[1:])
+	header.locked = buffer[1]
+	header.numEntries = binary.BigEndian.Uint32(buffer[2:])
 	return n, nil
 }
 
@@ -129,8 +133,9 @@ func writeEntryDeleted(deleted bool, writer io.Writer) error {
 	return binary.Write(writer, binary.BigEndian, deleted)
 }
 
-// Writes the "locked" field of the file's header without changing the file pointer.
-func setLocked(locked bool, file *os.File) error {
+// Writes the "locked" field of the file's header without changing file
+// pointer position.
+func WriteLocked(locked bool, file io.WriteSeeker) error {
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return err
@@ -154,18 +159,28 @@ func setLocked(locked bool, file *os.File) error {
 	return nil
 }
 
-// Checks whether the index file has the locked field set true.
-func IsLocked(filePath string) (bool, error) {
-	file, err := os.Open(filePath)
+// Checks whether the index file has the locked field set true without changing
+// the file pointer.
+func IsLocked(file io.ReadSeeker) (bool, error) {
+	// Save current position
+	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
+	// Read the byte that is responsible for locking
 	_, err = file.Seek(int64(lockedOffset), io.SeekStart)
 	if err != nil {
 		return false, err
 	}
 	bytes := []byte{0}
 	_, err = file.Read(bytes)
+	if err != nil {
+		return false, err
+	}
+	// Restore the initial position
+	_, err = file.Seek(pos, io.SeekStart)
+	if err != nil {
+		return false, err
+	}
 	return bytes[0] != 0, err
 }

@@ -1,6 +1,6 @@
 # Recommendation engine
 
-Recengine is a recommendation engine that implements "true" user-based
+Recengine is a recommendation microservice that implements "true" user-based
 collaborative filtering. The engine is designed to run as a microservice
 with REST interface.
 

@@ -92,10 +92,3 @@ func (p1 *Profile) ComputeSimilarity(p2 Profile, dislikeFactor float32) float32 
 	return 100 * ((likesSim*float32(likesWeight) + dislikesSim*float32(dislikesWeight)) /
 		(float32(likesWeight) + float32(dislikesWeight)))
 }
-
-// Creates a reader from the profile.
-func (p *Profile) MakeReader() *ProfileReader {
-	reader := ProfileReader{}
-	reader.SetProfile(p)
-	return &reader
-}
