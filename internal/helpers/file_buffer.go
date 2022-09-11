@@ -13,11 +13,11 @@ type FileBuffer struct {
 }
 
 // Creates new buffer that implements io.ReadWriteSeeker for testing purposes.
-func NewFileBuffer(initial []byte) FileBuffer {
+func NewFileBuffer(initial []byte) *FileBuffer {
 	if initial == nil {
 		initial = make([]byte, 0, 100)
 	}
-	return FileBuffer{
+	return &FileBuffer{
 		buffer: initial,
 		offset: 0,
 	}

@@ -15,7 +15,7 @@ const version = 1
 const headerSize = 1 + 1 + 4
 
 // Entry size in bytes
-const entrySize = 1 + 8 + 8
+const entrySize = 8 + 8
 
 // The file prefix (aka "Magic number").
 var prefix = [...]byte{'R', 'E', 'C', 'I', 'D', 'X'}
@@ -32,9 +32,8 @@ type header struct {
 
 // Database index table row.
 type entry struct {
-	deleted byte
-	id      uint64
-	index   uint64
+	id    uint64
+	index uint64
 }
 
 // Writes the file prefix, aka "Magic number", which verifies type of the file.
@@ -91,11 +90,7 @@ func readHeader(header *header, reader io.Reader) (int, error) {
 
 // Writes a file entry. Returns number of bytes written.
 func writeEntry(entry *entry, writer io.Writer) (int, error) {
-	err := binary.Write(writer, binary.BigEndian, entry.deleted)
-	if err != nil {
-		return 0, err
-	}
-	err = binary.Write(writer, binary.BigEndian, entry.id)
+	err := binary.Write(writer, binary.BigEndian, entry.id)
 	if err != nil {
 		return 0, err
 	}
@@ -108,15 +103,8 @@ func writeEntry(entry *entry, writer io.Writer) (int, error) {
 
 // Reads a database entry. Returns number of bytes read.
 func readEntry(entry *entry, reader io.Reader) (int, error) {
-	// Read "deleted"
-	var bytes [1]byte
-	_, err := helpers.ReadFullLength(bytes[:], reader)
-	if err != nil {
-		return 0, err
-	}
-	entry.deleted = bytes[0]
 	// Read "id"
-	err = binary.Read(reader, binary.BigEndian, &entry.id)
+	err := binary.Read(reader, binary.BigEndian, &entry.id)
 	if err != nil {
 		return 0, err
 	}
@@ -126,11 +114,6 @@ func readEntry(entry *entry, reader io.Reader) (int, error) {
 		return 0, err
 	}
 	return entrySize, nil
-}
-
-// Writes a file entry's deleted flag.
-func writeEntryDeleted(deleted bool, writer io.Writer) error {
-	return binary.Write(writer, binary.BigEndian, deleted)
 }
 
 // Writes the "locked" field of the file's header without changing file

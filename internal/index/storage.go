@@ -10,12 +10,9 @@ import (
 
 // Database index storage.
 type IndexStorage struct {
-	file       io.ReadWriteSeeker
-	closer     io.Closer
-	indices    map[uint64]uint64
-	offsets    map[uint64]int64
-	writer     *bufio.Writer
-	numDeleted int
+	file    io.ReadWriteSeeker
+	closer  io.Closer
+	indices map[uint64]uint64
 }
 
 // Opens an index file by the specified path. If the file doesn't exist yet
@@ -36,9 +33,6 @@ func Open(file io.ReadWriteSeeker, closer io.Closer) (*IndexStorage, error) {
 		file,
 		closer,
 		make(map[uint64]uint64),
-		make(map[uint64]int64),
-		bufio.NewWriter(file),
-		0,
 	}
 	size, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
@@ -124,19 +118,27 @@ func (s *IndexStorage) load() error {
 		if err != nil {
 			return fmt.Errorf("Failed to read index entry: %v", err)
 		}
-		s.offsets[entry.id] = offset
-		if entry.deleted != 0 {
-			s.numDeleted++
-		} else {
-			s.indices[entry.id] = entry.index
-		}
+		s.indices[entry.id] = entry.index
 	}
 	return nil
 }
 
 // Closes the storage file.
 func (s *IndexStorage) Close() error {
-	s.saveHeader(false)
+	err := s.saveHeader(false)
+	if err != nil {
+		if s.closer != nil {
+			s.closer.Close()
+		}
+		return err
+	}
+	err = s.saveEntries()
+	if err != nil {
+		if s.closer != nil {
+			s.closer.Close()
+		}
+		return err
+	}
 	if s.closer != nil {
 		return s.closer.Close()
 	}
@@ -149,7 +151,7 @@ func (s *IndexStorage) saveHeader(locked bool) error {
 	if locked {
 		lockedByte = 1
 	}
-	header := header{version, lockedByte, uint32(len(s.offsets))}
+	header := header{version, lockedByte, uint32(len(s.indices))}
 	_, err := s.file.Seek(int64(len(prefix)), io.SeekStart)
 	if err != nil {
 		if s.closer != nil {
@@ -157,12 +159,40 @@ func (s *IndexStorage) saveHeader(locked bool) error {
 		}
 		return fmt.Errorf("Failed to seek: %v", err)
 	}
-	_, err = writeHeader(&header, s.file)
+	writer := bufio.NewWriter(s.file)
+	_, err = writeHeader(&header, writer)
 	if err != nil {
 		if s.closer != nil {
 			s.closer.Close()
 		}
 		return fmt.Errorf("Failed to write index header: %v", err)
+	}
+	err = writer.Flush()
+	if err != nil {
+		return fmt.Errorf("Failed flush buffer: %v", err)
+	}
+	return nil
+}
+
+// Saves cached entries into the disk.
+func (s *IndexStorage) saveEntries() error {
+	_, err := s.file.Seek(int64(entriesOffset), io.SeekStart)
+	if err != nil {
+		return fmt.Errorf("Failed to seek: %v", err)
+	}
+	writer := bufio.NewWriter(s.file)
+	entry := entry{}
+	for id, idx := range s.indices {
+		entry.id = id
+		entry.index = idx
+		_, err = writeEntry(&entry, writer)
+		if err != nil {
+			return fmt.Errorf("Failed to write entry: %v", err)
+		}
+	}
+	err = writer.Flush()
+	if err != nil {
+		return fmt.Errorf("Failed flush buffer: %v", err)
 	}
 	return nil
 }
@@ -176,30 +206,8 @@ func (s *IndexStorage) Get(id uint64) (uint64, bool) {
 // Associates an index with an ID.
 func (s *IndexStorage) Put(id uint64, index uint64) error {
 	// Update the in-memory map
-	_, hadIndex := s.indices[id]
 	s.indices[id] = index
-	// Update the file
-	offset, exists := s.offsets[id]
-	var err error
-	if !exists {
-		offset, err = s.file.Seek(0, io.SeekEnd)
-		s.offsets[id] = offset
-	} else {
-		_, err = s.file.Seek(offset, io.SeekStart)
-		if !hadIndex { // Undeleting
-			s.numDeleted--
-		}
-	}
-	if err != nil {
-		return err
-	}
-	s.writer.Reset(s.file)
-	entry := entry{0, id, index}
-	_, err = writeEntry(&entry, s.writer)
-	if err != nil {
-		return fmt.Errorf("Failed to write index entry: %v", err)
-	}
-	return s.writer.Flush()
+	return nil
 }
 
 // Removes an index from the database.
@@ -207,21 +215,6 @@ func (s *IndexStorage) Remove(id uint64) error {
 	if _, hasIndex := s.indices[id]; !hasIndex {
 		return nil
 	}
-	// Update the in-memory map
 	delete(s.indices, id)
-	// Update the file
-	offset, exists := s.offsets[id]
-	if !exists {
-		return nil
-	}
-	_, err := s.file.Seek(offset, io.SeekStart)
-	if err != nil {
-		return err
-	}
-	err = writeEntryDeleted(true, s.file)
-	if err != nil {
-		return fmt.Errorf("Failed to write entry deleted flag: %v", err)
-	}
-	s.numDeleted++
 	return nil
 }

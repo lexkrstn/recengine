@@ -88,8 +88,8 @@ func TestReadHeader(t *testing.T) {
 }
 
 func TestWriteEntry(t *testing.T) {
-	entry := entry{1, 7, 13}
-	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13}
+	entry := entry{7, 13}
+	expected := []byte{0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13}
 	buf := bytes.NewBuffer(nil)
 	n, err := writeEntry(&entry, buf)
 	if err != nil {
@@ -107,8 +107,8 @@ func TestWriteEntry(t *testing.T) {
 }
 
 func TestReadEntry(t *testing.T) {
-	data := []byte{1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13}
-	expected := entry{1, 7, 13}
+	data := []byte{0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13}
+	expected := entry{7, 13}
 	entry := entry{}
 	reader := bytes.NewReader(append(data, 42))
 	n, err := readEntry(&entry, reader)
@@ -131,26 +131,12 @@ func TestReadEntry(t *testing.T) {
 	}
 }
 
-func TestWriteEntryDeleted(t *testing.T) {
-	expected := []byte{1}
-	buf := bytes.NewBuffer(nil)
-	err := writeEntryDeleted(true, buf)
-	if err != nil {
-		t.Errorf("Got error: %v", err)
-		return
-	}
-	if !reflect.DeepEqual(expected, buf.Bytes()) {
-		t.Errorf("Entry expected %v, got %v", expected, buf.Bytes())
-		return
-	}
-}
-
 func TestWriteLocked(t *testing.T) {
 	unlockedHeader := append(prefix[:], 1, 0, 0, 0, 0, 42)
 	lockedHeader := append(prefix[:], 1, 1, 0, 0, 0, 42)
 	t.Run("should lock a file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(append([]byte{}, unlockedHeader...))
-		err := WriteLocked(true, &buf)
+		err := WriteLocked(true, buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
 			return
@@ -162,7 +148,7 @@ func TestWriteLocked(t *testing.T) {
 	})
 	t.Run("should unlock a file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(append([]byte{}, lockedHeader...))
-		err := WriteLocked(false, &buf)
+		err := WriteLocked(false, buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
 			return
@@ -179,7 +165,7 @@ func TestIsLocked(t *testing.T) {
 	lockedHeader := append(prefix[:], 1, 1, 0, 0, 0, 42)
 	t.Run("should return true for locked file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(lockedHeader)
-		locked, err := IsLocked(&buf)
+		locked, err := IsLocked(buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
 			return
@@ -191,7 +177,7 @@ func TestIsLocked(t *testing.T) {
 	})
 	t.Run("should return false for unlocked file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(unlockedHeader)
-		locked, err := IsLocked(&buf)
+		locked, err := IsLocked(buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
 			return
