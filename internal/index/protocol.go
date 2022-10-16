@@ -20,7 +20,10 @@ const entrySize = 8 + 8
 // The file prefix (aka "Magic number").
 var prefix = [...]byte{'R', 'E', 'C', 'I', 'D', 'X'}
 
+// The offset of the first entry byte from the beginning of the file.
 const entriesOffset = len(prefix) + headerSize
+
+// The offset of the lock byte of the header from the beginning of the file.
 const lockedOffset = len(prefix) + 1
 
 // Database index file header.
@@ -101,7 +104,7 @@ func writeEntry(entry *entry, writer io.Writer) (int, error) {
 	return entrySize, nil
 }
 
-// Reads a database entry. Returns number of bytes read.
+// Reads a database entry. Returns the number of bytes read.
 func readEntry(entry *entry, reader io.Reader) (int, error) {
 	// Read "id"
 	err := binary.Read(reader, binary.BigEndian, &entry.id)
