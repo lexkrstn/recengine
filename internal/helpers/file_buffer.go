@@ -10,9 +10,11 @@ import (
 type FileBuffer struct {
 	buffer []byte
 	offset int64
+	closed bool
 }
 
 // Creates new buffer that implements io.ReadWriteSeeker for testing purposes.
+// The initial value can be nil to create the buffer empty.
 func NewFileBuffer(initial []byte) *FileBuffer {
 	if initial == nil {
 		initial = make([]byte, 0, 100)
@@ -20,6 +22,7 @@ func NewFileBuffer(initial []byte) *FileBuffer {
 	return &FileBuffer{
 		buffer: initial,
 		offset: 0,
+		closed: false,
 	}
 }
 
@@ -32,6 +35,9 @@ func (fb *FileBuffer) Len() int {
 }
 
 func (fb *FileBuffer) Read(b []byte) (int, error) {
+	if fb.closed {
+		return 0, errors.New("Cannot read from closed file buffer")
+	}
 	available := len(fb.buffer) - int(fb.offset)
 	if available == 0 {
 		return 0, io.EOF
@@ -46,6 +52,9 @@ func (fb *FileBuffer) Read(b []byte) (int, error) {
 }
 
 func (fb *FileBuffer) Write(b []byte) (int, error) {
+	if fb.closed {
+		return 0, errors.New("Cannot write to closed file buffer")
+	}
 	copied := copy(fb.buffer[fb.offset:], b)
 	if copied < len(b) {
 		fb.buffer = append(fb.buffer, b[copied:]...)
@@ -55,6 +64,9 @@ func (fb *FileBuffer) Write(b []byte) (int, error) {
 }
 
 func (fb *FileBuffer) Seek(offset int64, whence int) (int64, error) {
+	if fb.closed {
+		return 0, errors.New("Cannot seek in closed file buffer")
+	}
 	var newOffset int64
 	switch whence {
 	case io.SeekStart:
@@ -71,4 +83,33 @@ func (fb *FileBuffer) Seek(offset int64, whence int) (int64, error) {
 	}
 	fb.offset = newOffset
 	return newOffset, nil
+}
+
+func (fb *FileBuffer) Truncate(size int64) error {
+	if fb.closed {
+		return errors.New("Cannot truncate closed file buffer")
+	}
+	if size < 0 {
+		return errors.New("New file size must be non-negative")
+	}
+	if size < fb.offset {
+		fb.offset = size
+	}
+	sizeDiff := size - int64(len(fb.buffer))
+	if sizeDiff <= 0 {
+		fb.buffer = fb.buffer[:size]
+	} else {
+		oldBuffer := fb.buffer
+		fb.buffer = make([]byte, 0, size)
+		fb.buffer = append(fb.buffer, oldBuffer...)
+		for i := int64(0); i < sizeDiff; i++ {
+			fb.buffer = append(fb.buffer, 0)
+		}
+	}
+	return nil
+}
+
+func (fb *FileBuffer) Close() error {
+	fb.closed = true
+	return nil
 }
