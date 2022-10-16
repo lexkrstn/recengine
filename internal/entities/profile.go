@@ -1,4 +1,4 @@
-package like
+package entities
 
 import "recengine/internal/helpers"
 
@@ -11,7 +11,7 @@ const (
 // Encapsulates all the items liked by a user.
 type Profile struct {
 	// User or compilation ID.
-	User uint64 `json:"user"`
+	UserID uint64 `json:"user"`
 	// Array of the IDs of the liked items.
 	Likes []uint64 `json:"likes"`
 	// Array of the IDs of the liked items.

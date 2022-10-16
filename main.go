@@ -3,29 +3,36 @@ package main
 import (
 	"context"
 	"log"
-
-	recengine "recengine/internal"
+	"recengine/internal/api/shard"
+	"recengine/internal/entities"
 
 	"github.com/joho/godotenv"
 )
+
+func runShard() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	nsService := entities.NewNamespaceService(ctx)
+	if err := nsService.LoadNamespaces(); err != nil {
+		log.Printf("Warning: couldn't load domains (first load?): %v\n", err)
+	}
+	if err := nsService.Start(ctx); err != nil {
+		log.Fatalf("Error running namespace service: %v\n", err)
+	}
+
+	app := shard.NewApplication(&shard.ApplicationDto{
+		Config:    shard.NewConfigFromEnv(nil),
+		NsService: nsService,
+	})
+	if err := app.Run(); err != nil {
+		log.Fatalf("Error running shard application: %v\n", err)
+	}
+}
 
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatalf("Error loading .env file: %v\n", err)
 	}
-
-	engine := recengine.NewEngine()
-	if err := engine.LoadDomains(); err != nil {
-		log.Printf("Warning: couldn't load domains (first load?): %v\n", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := engine.Start(ctx); err != nil {
-		log.Fatalf("Error running engine: %v\n", err)
-	}
-
-	srv := recengine.NewServer(engine, recengine.MakeServerConfigFromEnv(nil))
-	if err := srv.Run(); err != nil {
-		log.Fatalf("Error running server: %v\n", err)
-	}
+	runShard()
 }

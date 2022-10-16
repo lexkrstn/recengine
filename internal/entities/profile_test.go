@@ -1,4 +1,4 @@
-package like
+package entities
 
 import (
 	"math"
