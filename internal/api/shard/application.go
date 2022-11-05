@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"recengine/internal/entities"
+	"recengine/internal/api/shard/endpoints"
+	"recengine/internal/domain/services"
 	"syscall"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 // Shard application instantiation parameters.
 type ApplicationDto struct {
 	Config    *Config
-	NsService *entities.NamespaceService
+	NsService *services.NamespaceService
 }
 
 // Shard application.
@@ -25,7 +26,7 @@ type Application struct {
 	router     *gin.Engine
 	httpSrv    *http.Server
 	config     *Config
-	nsEndpoint *NamespaceEndpoint
+	nsEndpoint *endpoints.NamespaceEndpoint
 }
 
 // Instantiates a new Application.
@@ -39,7 +40,7 @@ func NewApplication(dto *ApplicationDto) *Application {
 		router:     engine,
 		httpSrv:    httpSrv,
 		config:     dto.Config,
-		nsEndpoint: NewNamespaceEndpoint(dto.NsService),
+		nsEndpoint: endpoints.NewNamespaceEndpoint(dto.NsService),
 	}
 	app.nsEndpoint.RegisterRoutes(engine)
 	return app
@@ -53,7 +54,7 @@ func (srv *Application) Run() error {
 
 	go func() {
 		if err := srv.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			listenError <- fmt.Errorf("Server listening failed: %v", err)
+			listenError <- fmt.Errorf("server listening failed: %v", err)
 		} else {
 			listenError <- nil
 		}
@@ -73,12 +74,12 @@ func (srv *Application) Run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.httpSrv.Shutdown(ctx); err != nil {
-		return fmt.Errorf("Server shutdown: %v", err)
+		return fmt.Errorf("server shutdown: %v", err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("Shutdown timeout")
+		return fmt.Errorf("shutdown timeout")
 	case err := <-listenError:
 		log.Println("Server exiting")
 		return err

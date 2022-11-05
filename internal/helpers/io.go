@@ -10,23 +10,6 @@ var zeros = [100]byte{}
 // /dev/null
 var dump = [100]byte{}
 
-// Tries to read the whole buffer from the reader and returns an error if
-// EOF (or any other error) occurs abruptly.
-func ReadFullLength(buffer []byte, reader io.Reader) (int, error) {
-	total := 0
-	for total < len(buffer) {
-		read, err := reader.Read(buffer[total:])
-		total += read
-		if err != nil {
-			if err == io.EOF && total == len(buffer) {
-				break
-			}
-			return total, err
-		}
-	}
-	return total, nil
-}
-
 // Effectively writes continuous range of zero-filled bytes into a writer.
 func WriteZeros(size int, writer io.Writer) (int, error) {
 	total := 0
@@ -44,8 +27,8 @@ func WriteZeros(size int, writer io.Writer) (int, error) {
 	return total, nil
 }
 
-// Skips some number of bytes
-func Skip(size int, reader io.Reader) (int, error) {
+// Skips some number of bytes in io.Reader.
+func SkipReading(size int, reader io.Reader) (int, error) {
 	if size == 0 {
 		return 0, nil
 	}

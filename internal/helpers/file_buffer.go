@@ -36,7 +36,7 @@ func (fb *FileBuffer) Len() int {
 
 func (fb *FileBuffer) Read(b []byte) (int, error) {
 	if fb.closed {
-		return 0, errors.New("Cannot read from closed file buffer")
+		return 0, errors.New("cannot read from closed file buffer")
 	}
 	available := len(fb.buffer) - int(fb.offset)
 	if available == 0 {
@@ -53,7 +53,7 @@ func (fb *FileBuffer) Read(b []byte) (int, error) {
 
 func (fb *FileBuffer) Write(b []byte) (int, error) {
 	if fb.closed {
-		return 0, errors.New("Cannot write to closed file buffer")
+		return 0, errors.New("cannot write to closed file buffer")
 	}
 	copied := copy(fb.buffer[fb.offset:], b)
 	if copied < len(b) {
@@ -65,7 +65,7 @@ func (fb *FileBuffer) Write(b []byte) (int, error) {
 
 func (fb *FileBuffer) Seek(offset int64, whence int) (int64, error) {
 	if fb.closed {
-		return 0, errors.New("Cannot seek in closed file buffer")
+		return 0, errors.New("cannot seek in closed file buffer")
 	}
 	var newOffset int64
 	switch whence {
@@ -76,10 +76,10 @@ func (fb *FileBuffer) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekEnd:
 		newOffset = int64(len(fb.buffer)) + offset
 	default:
-		return 0, errors.New("Unknown Seek Method")
+		return 0, errors.New("unknown Seek Method")
 	}
 	if newOffset > int64(len(fb.buffer)) || newOffset < 0 {
-		return 0, fmt.Errorf("Invalid Offset %d", offset)
+		return 0, fmt.Errorf("invalid Offset %d", offset)
 	}
 	fb.offset = newOffset
 	return newOffset, nil
@@ -87,10 +87,10 @@ func (fb *FileBuffer) Seek(offset int64, whence int) (int64, error) {
 
 func (fb *FileBuffer) Truncate(size int64) error {
 	if fb.closed {
-		return errors.New("Cannot truncate closed file buffer")
+		return errors.New("cannot truncate closed file buffer")
 	}
 	if size < 0 {
-		return errors.New("New file size must be non-negative")
+		return errors.New("new file size must be non-negative")
 	}
 	if size < fb.offset {
 		fb.offset = size

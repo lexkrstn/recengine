@@ -1,0 +1,151 @@
+definitions:
+  dto.Error:
+    properties:
+      message:
+        type: string
+    type: object
+  dto.NamespaceCreateRequest:
+    properties:
+      dislikeFactor:
+        maximum: 1
+        minimum: 0
+        type: number
+      maxSimilarProfiles:
+        minimum: 1
+        type: integer
+      name:
+        type: string
+      type:
+        enum:
+        - like
+        type: string
+    required:
+    - dislikeFactor
+    - name
+    - type
+    type: object
+  dto.NamespaceResponse:
+    properties:
+      maxSimilarProfiles:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.NamespaceUpdateRequest:
+    properties:
+      dislikeFactor:
+        maximum: 1
+        minimum: 0
+        type: number
+      maxSimilarProfiles:
+        minimum: 1
+        type: integer
+      name:
+        type: string
+    required:
+    - dislikeFactor
+    - name
+    type: object
+  dto.ValidationError:
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/namespaces:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NamespaceResponse'
+            type: array
+      summary: Returns all registered namespaces.
+      tags:
+      - Namespace
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: NamespaceCreateRequest
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.NamespaceCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NamespaceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ValidationError'
+      summary: Creates a namespace.
+      tags:
+      - Namespace
+  /api/v1/namespaces/{name}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Namespace name
+        in: path
+        name: name
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NamespaceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Error'
+      summary: Returns a namespace by its name.
+      tags:
+      - Namespace
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Namespace name
+        in: path
+        name: name
+        required: true
+        type: integer
+      - description: NamespaceUpdateRequest
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.NamespaceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NamespaceResponse'
+            type: array
+      summary: Returns all registered namespaces.
+      tags:
+      - Namespace
+swagger: "2.0"
