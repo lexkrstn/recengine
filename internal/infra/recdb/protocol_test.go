@@ -3,7 +3,7 @@ package recdb
 import (
 	"bytes"
 	"io"
-	"recengine/internal/domain/entities"
+	"recengine/internal/domain"
 	"recengine/internal/helpers"
 	"reflect"
 	"testing"
@@ -93,7 +93,7 @@ func TestProtocolReadHeader(t *testing.T) {
 }
 
 func TestProtocolWriteEntry(t *testing.T) {
-	profile := entities.NewProfile(42)
+	profile := domain.NewProfile(42)
 	profile.Likes = []uint64{7, 13}
 	profile.Dislikes = []uint64{33}
 	expected := []byte{
@@ -137,7 +137,7 @@ func TestReadEntry(t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 33, // dislike #1
 		0, 0, 0, 0, 0, // reserve
 	}
-	profile := entities.NewProfile(42)
+	profile := domain.NewProfile(42)
 	profile.Likes = []uint64{7, 13}
 	profile.Dislikes = []uint64{33}
 	expected := Entry{uint32(len(data)), 0, profile}

@@ -1,4 +1,4 @@
-package entities
+package domain
 
 type RecItem struct {
 	ItemID    uint64

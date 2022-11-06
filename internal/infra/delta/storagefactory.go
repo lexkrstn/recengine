@@ -4,48 +4,34 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"recengine/internal/domain"
 	"recengine/internal/helpers"
 )
-
-// Delta storage factory.
-type StorageFactory interface {
-	// If the file is corrupted, recovers it making its data consistent.
-	// All inconsistent data is skipped (removed).  The file is considered
-	// corrupted if it's locked, which means it hasn't been closed properly.
-	Recover(file RandomAccessFile) error
-
-	// Opens a delta storage file. If the file is empty, writes all necessary data.
-	Open(file RandomAccessFile) (*storage, error)
-
-	// Opens a delta storage file.  If the file is empty, writes all necessary
-	// data. If the file is corrupted, tries to recover it first.
-	OpenMaybeRecover(file RandomAccessFile) (*storage, error)
-}
 
 // Delta storage factory.
 type storageFactory struct {
 	proto Protocol
 }
 
-// Compile-type type check
-var _ = (StorageFactory)((*storageFactory)(nil))
+// Compile-time type check
+var _ = (domain.DeltaStorageFactory)((*storageFactory)(nil))
 
 // Instantiates a delta storage factory.
-func NewStorageFactory() StorageFactory {
+func NewStorageFactory() domain.DeltaStorageFactory {
 	return NewStorageFactoryForProtocol(NewProtocol())
 }
 
 // Instantiates a delta storage factory.
-func NewStorageFactoryForProtocol(proto Protocol) StorageFactory {
+func NewStorageFactoryForProtocol(proto Protocol) domain.DeltaStorageFactory {
 	return &storageFactory{
 		proto: proto,
 	}
 }
 
-// If the file is corrupted, recovers it making its data consistent.
+// If the file is corrupted, recovers it making its data consistdomain.
 // All inconsistent data is skipped (removed).  The file is considered
 // corrupted if it's locked, which means it hasn't been closed properly.
-func (f *storageFactory) Recover(file RandomAccessFile) error {
+func (f *storageFactory) Recover(file domain.RandomAccessFile) error {
 	tmpFile := helpers.NewFileBuffer(nil)
 	err := f.proto.RecoverTo(file, tmpFile)
 	if err != nil {
@@ -73,7 +59,7 @@ func (f *storageFactory) Recover(file RandomAccessFile) error {
 }
 
 // Opens a delta storage file. If the file is empty, writes all necessary data.
-func (f *storageFactory) Open(file RandomAccessFile) (*storage, error) {
+func (f *storageFactory) Open(file domain.RandomAccessFile) (domain.DeltaStorage, error) {
 	size, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, err
@@ -151,7 +137,7 @@ func (f *storageFactory) Open(file RandomAccessFile) (*storage, error) {
 
 // Opens a delta storage file.  If the file is empty, writes all necessary
 // data. If the file is corrupted, tries to recover it first.
-func (f *storageFactory) OpenMaybeRecover(file RandomAccessFile) (*storage, error) {
+func (f *storageFactory) OpenMaybeRecover(file domain.RandomAccessFile) (domain.DeltaStorage, error) {
 	locked, err := f.proto.IsLocked(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if file is locked: %v", err)

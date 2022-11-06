@@ -1,4 +1,4 @@
-package entities
+package domain
 
 type SimilarProfile struct {
 	Profile    *Profile

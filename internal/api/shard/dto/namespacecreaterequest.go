@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"recengine/internal/domain/services"
+	"recengine/internal/domain"
 	"recengine/internal/domain/valueobjects"
 )
 
@@ -13,7 +13,7 @@ type NamespaceCreateRequest struct {
 	DislikeFactor      float32 `json:"dislikeFactor" binding:"required,min=0,max=1"`
 }
 
-func (dto *NamespaceCreateRequest) ToDomain() (*services.NamespaceCreateRequest, error) {
+func (dto *NamespaceCreateRequest) ToDomain() (*domain.NamespaceCreateRequest, error) {
 	var ve *ValidationError
 	domainName, err := valueobjects.ParseNamespaceName(dto.Name)
 	if err != nil {
@@ -26,7 +26,7 @@ func (dto *NamespaceCreateRequest) ToDomain() (*services.NamespaceCreateRequest,
 	if ve != nil {
 		return nil, ve
 	}
-	domainDto := &services.NamespaceCreateRequest{
+	domainDto := &domain.NamespaceCreateRequest{
 		Name:               domainName,
 		Type:               domainType,
 		MaxSimilarProfiles: dto.MaxSimilarProfiles,

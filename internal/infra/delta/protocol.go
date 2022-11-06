@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"recengine/internal/domain"
 	"reflect"
 )
 
@@ -14,17 +15,9 @@ type Header struct {
 	NumEntries uint32
 }
 
-// OpAdd or OpRemove
-type Operation byte
-
-const (
-	OpAdd    Operation = '+'
-	OpRemove Operation = '-'
-)
-
 // Delta file Entry.
 type Entry struct {
-	Op       Operation
+	Op       domain.DeltaOp
 	UserID   uint64
 	ItemID   uint64
 	Checksum byte
@@ -92,7 +85,7 @@ type Protocol interface {
 // Implements delta file functions.
 type protocol struct{}
 
-// Compile-type type check
+// Compile-time type check
 var _ = (Protocol)((*protocol)(nil))
 
 // Returns new protocol instance.

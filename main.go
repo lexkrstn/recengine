@@ -4,7 +4,9 @@ import (
 	"context"
 	"log"
 	"recengine/internal/api/shard"
-	"recengine/internal/domain/services"
+	"recengine/internal/domain"
+	"recengine/internal/infra/delta"
+	"recengine/internal/infra/index"
 
 	"github.com/joho/godotenv"
 )
@@ -13,7 +15,10 @@ func runShard() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nsService := services.NewNamespaceService(ctx)
+	deltaStorageFactory := delta.NewStorageFactory()
+	indexStorageFactory := index.NewStorageFactory()
+
+	nsService := domain.NewNamespaceService(ctx, deltaStorageFactory, indexStorageFactory)
 	if err := nsService.LoadNamespaces(); err != nil {
 		log.Printf("Warning: couldn't load domains (first load?): %v\n", err)
 	}

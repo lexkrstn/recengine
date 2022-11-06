@@ -4,35 +4,24 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"recengine/internal/domain"
 )
 
 // Index storage factory.
-type StorageFactory interface {
-	// Opens an index file by the specified path. If the file doesn't exist yet
-	// it will be created.
-	OpenFile(filePath string) (*storage, error)
-
-	// Opens an index file by the specified path. If the file doesn't exist yet
-	// it will be created.
-	Open(file io.ReadWriteSeeker, closer io.Closer) (*storage, error)
-}
-
-// Index storage factory.
 type storageFactory struct {
-	StorageFactory
 	proto Protocol
 }
 
-// Compile-type type check
-var _ = (StorageFactory)((*storageFactory)(nil))
+// Compile-time type check
+var _ = (domain.IndexStorageFactory)((*storageFactory)(nil))
 
 // Instantiates an index storage factory.
-func NewStorageFactory() StorageFactory {
+func NewStorageFactory() domain.IndexStorageFactory {
 	return NewStorageFactoryForProtocol(NewProtocol())
 }
 
 // Instantiates an index storage factory.
-func NewStorageFactoryForProtocol(proto Protocol) StorageFactory {
+func NewStorageFactoryForProtocol(proto Protocol) domain.IndexStorageFactory {
 	return &storageFactory{
 		proto: proto,
 	}
@@ -40,7 +29,7 @@ func NewStorageFactoryForProtocol(proto Protocol) StorageFactory {
 
 // Opens an index file by the specified path. If the file doesn't exist yet
 // it will be created.
-func (f *storageFactory) OpenFile(filePath string) (*storage, error) {
+func (f *storageFactory) OpenFile(filePath string) (domain.IndexStorage, error) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
@@ -51,7 +40,10 @@ func (f *storageFactory) OpenFile(filePath string) (*storage, error) {
 
 // Opens an index file by the specified path. If the file doesn't exist yet
 // it will be created.
-func (f *storageFactory) Open(file io.ReadWriteSeeker, closer io.Closer) (*storage, error) {
+func (f *storageFactory) Open(
+	file io.ReadWriteSeeker,
+	closer io.Closer,
+) (domain.IndexStorage, error) {
 	storage := &storage{
 		file:    file,
 		closer:  closer,

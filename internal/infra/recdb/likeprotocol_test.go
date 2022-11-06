@@ -2,7 +2,7 @@ package recdb
 
 import (
 	"bytes"
-	"recengine/internal/domain/entities"
+	"recengine/internal/domain"
 	"recengine/internal/helpers"
 	"reflect"
 	"testing"
@@ -18,7 +18,7 @@ func TestLikeProtocolReadEntryData(t *testing.T) {
 		0, 0, 0, 1, // dislike count
 		0, 0, 0, 0, 0, 0, 0, 33, // dislike #1
 	}
-	profile := entities.Profile{
+	profile := domain.Profile{
 		UserID:   42,
 		Likes:    []uint64{7, 13},
 		Dislikes: []uint64{33},
@@ -37,7 +37,7 @@ func TestLikeProtocolReadEntryData(t *testing.T) {
 			t.Errorf("Read %d bytes, must be %d", n, len(profileData))
 			return
 		}
-		resultProfile, ok := entry.Data.(*entities.Profile)
+		resultProfile, ok := entry.Data.(*domain.Profile)
 		if !ok {
 			t.Errorf("Invalid Data type %s", reflect.TypeOf(resultProfile).Name())
 			return
@@ -70,7 +70,7 @@ func TestLikeProtocolWriteEntryData(t *testing.T) {
 		0, 0, 0, 1, // dislike count
 		0, 0, 0, 0, 0, 0, 0, 33, // dislike #1
 	}
-	profile := entities.Profile{
+	profile := domain.Profile{
 		UserID:   42,
 		Likes:    []uint64{7, 13},
 		Dislikes: []uint64{33},

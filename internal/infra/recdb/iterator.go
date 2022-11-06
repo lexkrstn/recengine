@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"recengine/internal/domain"
 )
 
 // The database entry iterator.
@@ -35,7 +36,7 @@ type iterator struct {
 	proto      Protocol
 }
 
-// Compile-type type check
+// Compile-time type check
 var _ = (Iterator)((*iterator)(nil))
 
 // Creates a new database entry iterator.
@@ -54,7 +55,7 @@ func NewIterator(file io.ReadWriteSeeker, proto Protocol) (Iterator, error) {
 		return nil, fmt.Errorf("failed to read DB header: %v", err)
 	}
 	if header.Locked != 0 {
-		return nil, NewLockedFileError()
+		return nil, domain.NewCorruptedFileError()
 	}
 	reader := bufio.NewReader(file)
 	iter := &iterator{&header, file, reader, 0, 0, Entry{}, proto}

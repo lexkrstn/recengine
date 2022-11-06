@@ -3,7 +3,7 @@ package endpoints
 import (
 	"net/http"
 	"recengine/internal/api/shard/dto"
-	"recengine/internal/domain/services"
+	"recengine/internal/domain"
 	"recengine/internal/domain/valueobjects"
 
 	"github.com/gin-gonic/gin"
@@ -11,11 +11,11 @@ import (
 
 // Controller for the namespace API endpoint.
 type NamespaceEndpoint struct {
-	nsService *services.NamespaceService
+	nsService *domain.NamespaceService
 }
 
 // Creates a NamespaceEndpoint.
-func NewNamespaceEndpoint(nsService *services.NamespaceService) *NamespaceEndpoint {
+func NewNamespaceEndpoint(nsService *domain.NamespaceService) *NamespaceEndpoint {
 	return &NamespaceEndpoint{
 		nsService: nsService,
 	}

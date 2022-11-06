@@ -1,6 +1,7 @@
 package delta
 
 import (
+	"recengine/internal/domain"
 	"recengine/internal/helpers"
 	"testing"
 )
@@ -22,7 +23,7 @@ func makeTestHeaderData(locked bool, numEntries int) []byte {
 	return file.Bytes()
 }
 
-func makeTestEntryData(op Operation, user uint64, item uint64) []byte {
+func makeTestEntryData(op domain.DeltaOp, user uint64, item uint64) []byte {
 	dto := &Entry{
 		Op:     op,
 		UserID: user,
@@ -66,9 +67,9 @@ func TestClose(t *testing.T) {
 			t.Errorf("Got error creating the file: %v", err)
 			return
 		}
-		storage.Add(OpAdd, 7, 13)
-		storage.Add(OpRemove, 7, 42)
-		storage.Add(OpAdd, 5, 42)
+		storage.Add(domain.DeltaOpAdd, 7, 13)
+		storage.Add(domain.DeltaOpRemove, 7, 42)
+		storage.Add(domain.DeltaOpAdd, 5, 42)
 		// Close
 		storage.Close()
 		// Open the file again
@@ -85,15 +86,15 @@ func TestClose(t *testing.T) {
 			t.Errorf("user count expected %d, got %d", 2, storage.GetUserCount())
 		}
 		op, exists := storage.Get(7, 13)
-		if !exists || op != OpAdd {
+		if !exists || op != domain.DeltaOpAdd {
 			t.Errorf("Item {user: 7, item: 13} doesn't exist: %v, %v", op, exists)
 		}
 		op, exists = storage.Get(7, 42)
-		if !exists || op != OpRemove {
+		if !exists || op != domain.DeltaOpRemove {
 			t.Errorf("Item {user: 7, item: 42} doesn't exist: %v, %v", op, exists)
 		}
 		op, exists = storage.Get(5, 42)
-		if !exists || op != OpAdd {
+		if !exists || op != domain.DeltaOpAdd {
 			t.Errorf("Item {user: 5, item: 42} doesn't exist: %v, %v", op, exists)
 		}
 	})
@@ -111,9 +112,9 @@ func TestAdd(t *testing.T) {
 			return
 		}
 		defer storage.Close()
-		storage.Add(OpAdd, 7, 13)
-		storage.Add(OpRemove, 7, 42)
-		storage.Add(OpAdd, 5, 42)
+		storage.Add(domain.DeltaOpAdd, 7, 13)
+		storage.Add(domain.DeltaOpRemove, 7, 42)
+		storage.Add(domain.DeltaOpAdd, 5, 42)
 		// Check existence
 		if storage.GetTotalItemCount() != 3 {
 			t.Errorf("total item count expected %d, got %d", 3, storage.GetTotalItemCount())
@@ -122,15 +123,15 @@ func TestAdd(t *testing.T) {
 			t.Errorf("user count expected %d, got %d", 2, storage.GetUserCount())
 		}
 		op, exists := storage.Get(7, 13)
-		if !exists || op != OpAdd {
+		if !exists || op != domain.DeltaOpAdd {
 			t.Errorf("Item {user: 7, item: 13} doesn't exist: %v, %v", op, exists)
 		}
 		op, exists = storage.Get(7, 42)
-		if !exists || op != OpRemove {
+		if !exists || op != domain.DeltaOpRemove {
 			t.Errorf("Item {user: 7, item: 42} doesn't exist: %v, %v", op, exists)
 		}
 		op, exists = storage.Get(5, 42)
-		if !exists || op != OpAdd {
+		if !exists || op != domain.DeltaOpAdd {
 			t.Errorf("Item {user: 5, item: 42} doesn't exist: %v, %v", op, exists)
 		}
 	})
@@ -144,8 +145,8 @@ func TestAdd(t *testing.T) {
 			return
 		}
 		defer storage.Close()
-		storage.Add(OpAdd, 7, 13)
-		storage.Add(OpAdd, 7, 13)
+		storage.Add(domain.DeltaOpAdd, 7, 13)
+		storage.Add(domain.DeltaOpAdd, 7, 13)
 		// Check
 		if storage.GetTotalItemCount() != 1 {
 			t.Errorf("total item count expected %d, got %d", 1, storage.GetTotalItemCount())
@@ -164,15 +165,15 @@ func TestAdd(t *testing.T) {
 			return
 		}
 		defer storage.Close()
-		storage.Add(OpAdd, 42, 13)
-		storage.Add(OpAdd, 7, 13)
-		storage.Add(OpRemove, 7, 13)
+		storage.Add(domain.DeltaOpAdd, 42, 13)
+		storage.Add(domain.DeltaOpAdd, 7, 13)
+		storage.Add(domain.DeltaOpRemove, 7, 13)
 		// Check
 		if storage.GetTotalItemCount() != 2 {
 			t.Errorf("total item count expected %d, got %d", 1, storage.GetTotalItemCount())
 		}
 		op, exists := storage.Get(7, 13)
-		if !exists || op != OpRemove {
+		if !exists || op != domain.DeltaOpRemove {
 			t.Errorf("Item {user: 7, item: 13} doesn't exist: %v, %v", op, exists)
 		}
 	})

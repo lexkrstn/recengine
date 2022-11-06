@@ -2,7 +2,7 @@ package recdb
 
 import (
 	"errors"
-	"recengine/internal/domain/entities"
+	"recengine/internal/domain"
 	"recengine/internal/helpers"
 	"reflect"
 	"testing"
@@ -48,7 +48,7 @@ func mockLikeRecDbEntry(deleted bool) *Entry {
 	return &Entry{
 		Capacity: 50,
 		Deleted:  deletedByte,
-		Data: &entities.Profile{
+		Data: &domain.Profile{
 			UserID:   42,
 			Likes:    []uint64{7, 13},
 			Dislikes: []uint64{33},
@@ -78,7 +78,7 @@ func TestNewIterator(t *testing.T) {
 	t.Run("should fail opening locked file", func(t *testing.T) {
 		buffer := helpers.NewFileBuffer(mockLikeRecDbHeaderBytes(true, 0))
 		_, err := NewIterator(buffer, NewProtocol(NewLikeProtocol()))
-		if err == nil || !errors.Is(err, &LockedFileError{}) {
+		if err == nil || !errors.Is(err, &domain.CorruptedFileError{}) {
 			t.Error("expected an error")
 			return
 		}
@@ -303,7 +303,7 @@ func TestIteratorSetPrevious(t *testing.T) {
 		}
 		iter.Next()
 		entry1 := mockLikeRecDbEntry(false)
-		entry1.Data.(*entities.Profile).UserID += 1
+		entry1.Data.(*domain.Profile).UserID += 1
 		err = iter.SetPrevious(entry1)
 		if err != nil {
 			t.Error(err)

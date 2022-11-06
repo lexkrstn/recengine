@@ -4,51 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"recengine/internal/domain"
 )
-
-type RandomAccessFile interface {
-	io.Reader
-	io.Writer
-	io.Closer
-	io.Seeker
-	Truncate(size int64) error
-}
 
 // An item of the delta list corresponding to some user.
 type itemDelta struct {
 	item uint64
-	// OpAdd or OpRemove
-	op Operation
-}
-
-// Represents a storage of the database difference data.
-// The delta data complements the data stored in an associated RECDB database,
-// which is immutable in its turn.
-// Rougly speaking, the delta file for a database is something like a patch file
-// for a Git branch.
-type Storage interface {
-	// Flushes the internal buffers.
-	Flush() error
-
-	// Closes the delta storage file.  The files not closed with this
-	// function are considered broken and require recovery.
-	Close() error
-
-	// Returns the number of users currently stored in the storage.
-	GetUserCount() int
-
-	// Returns the number of items currently stored in the storage.
-	GetTotalItemCount() int
-
-	// Returns the storage file size required to keep all the data.
-	GetFileSize() uint64
-
-	// Returns the last operation associated with the specified user-item pair.
-	// This method exists mostly for debugging and testing purposes.
-	Get(user uint64, item uint64) (Operation, bool)
-
-	// Adds an operation of item addition or removal to a user profile.
-	Add(op Operation, user uint64, item uint64)
+	op   domain.DeltaOp
 }
 
 // Implements a storage of the database difference data.
@@ -63,13 +25,13 @@ type storage struct {
 	// Number of unflushed items.
 	unflushedItemCount int
 	// Storage file.
-	file RandomAccessFile
+	file domain.RandomAccessFile
 	// Delta file functions.
 	proto Protocol
 }
 
-// Compile-type type check
-var _ = (Storage)((*storage)(nil))
+// Compile-time type check
+var _ = (domain.DeltaStorage)((*storage)(nil))
 
 // Rewrites file header with actual data.
 func (s *storage) flushHeader() error {
@@ -183,13 +145,13 @@ func (s *storage) GetFileSize() uint64 {
 
 // Returns the last operation associated with the specified user-item pair.
 // This method exists mostly for debugging and testing purposes.
-func (s *storage) Get(user uint64, item uint64) (Operation, bool) {
+func (s *storage) Get(user uint64, item uint64) (domain.DeltaOp, bool) {
 	deltas, exists := s.newDelta[user]
 	if !exists {
 		deltas, exists = s.deltaCache[user]
 	}
 	if !exists {
-		return OpAdd, false
+		return domain.DeltaOpAdd, false
 	}
 	for i := range deltas {
 		delta := deltas[len(deltas)-i-1]
@@ -197,11 +159,11 @@ func (s *storage) Get(user uint64, item uint64) (Operation, bool) {
 			return delta.op, true
 		}
 	}
-	return OpAdd, false
+	return domain.DeltaOpAdd, false
 }
 
 // Adds an operation of item addition or removal to a user profile.
-func (s *storage) Add(op Operation, user uint64, item uint64) {
+func (s *storage) Add(op domain.DeltaOp, user uint64, item uint64) {
 	deltas, exists := s.newDelta[user]
 	if !exists {
 		s.newDelta[user] = make([]itemDelta, 0)

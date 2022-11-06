@@ -131,7 +131,7 @@ type protocol struct {
 	concreteProto ConcreteProtocol
 }
 
-// Compile-type type check
+// Compile-time type check
 var _ = (Protocol)((*protocol)(nil))
 
 // Instantiates a new protocol functions implementation using a concrete

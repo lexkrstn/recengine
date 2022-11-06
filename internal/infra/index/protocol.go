@@ -70,7 +70,7 @@ type Protocol interface {
 // Implements delta file functions.
 type protocol struct{}
 
-// Compile-type type check
+// Compile-time type check
 var _ = (Protocol)((*protocol)(nil))
 
 // Returns a new Protocol instance.

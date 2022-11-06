@@ -1,6 +1,6 @@
 package dto
 
-import "recengine/internal/domain/entities"
+import "recengine/internal/domain"
 
 type NamespaceResponse struct {
 	Name               string `json:"name"`
@@ -8,7 +8,7 @@ type NamespaceResponse struct {
 	MaxSimilarProfiles uint   `json:"maxSimilarProfiles"`
 }
 
-func NewNamespaceResponse(ns entities.Namespace) *NamespaceResponse {
+func NewNamespaceResponse(ns domain.Namespace) *NamespaceResponse {
 	return &NamespaceResponse{
 		Name:               ns.GetName().Value(),
 		Type:               ns.GetType().Value(),
@@ -16,7 +16,7 @@ func NewNamespaceResponse(ns entities.Namespace) *NamespaceResponse {
 	}
 }
 
-func MakeNamespaceResponseArray(namespaces []entities.Namespace) []NamespaceResponse {
+func MakeNamespaceResponseArray(namespaces []domain.Namespace) []NamespaceResponse {
 	responses := make([]NamespaceResponse, len(namespaces))
 	for i := range namespaces {
 		responses[i] = *NewNamespaceResponse(namespaces[i])

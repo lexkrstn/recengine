@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"recengine/internal/api/shard/endpoints"
-	"recengine/internal/domain/services"
+	"recengine/internal/domain"
 	"syscall"
 	"time"
 
@@ -18,7 +18,7 @@ import (
 // Shard application instantiation parameters.
 type ApplicationDto struct {
 	Config    *Config
-	NsService *services.NamespaceService
+	NsService *domain.NamespaceService
 }
 
 // Shard application.

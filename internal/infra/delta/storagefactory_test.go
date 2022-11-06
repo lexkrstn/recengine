@@ -1,6 +1,7 @@
 package delta
 
 import (
+	"recengine/internal/domain"
 	"recengine/internal/helpers"
 	"reflect"
 	"testing"
@@ -12,8 +13,8 @@ func TestRecover(t *testing.T) {
 	t.Run("should recover corrupted files", func(t *testing.T) {
 		lockedHeader := makeTestHeaderData(true, 42)
 		soleHeader := makeTestHeaderData(false, 1)
-		validEntry := makeTestEntryData(OpRemove, 7, 13)
-		invalidEntry := makeTestEntryData(OpRemove, 7, 13)
+		validEntry := makeTestEntryData(domain.DeltaOpRemove, 7, 13)
+		invalidEntry := makeTestEntryData(domain.DeltaOpRemove, 7, 13)
 		invalidEntry[len(invalidEntry)-1] = 0 // Checksum
 		fileData := append(append(lockedHeader, validEntry...), invalidEntry...)
 		expected := append(soleHeader, validEntry...)
@@ -48,7 +49,7 @@ func TestOpen(t *testing.T) {
 
 	t.Run("should open the file if it is not empty", func(t *testing.T) {
 		headerData := makeTestHeaderData(false, 1)
-		entryData := makeTestEntryData(OpRemove, 7, 13)
+		entryData := makeTestEntryData(domain.DeltaOpRemove, 7, 13)
 		file := helpers.NewFileBuffer(append(headerData, entryData...))
 		storage, err := factory.Open(file)
 		if err != nil {
@@ -106,8 +107,8 @@ func TestOpenMaybeRecover(t *testing.T) {
 	t.Run("should recover corrupted files", func(t *testing.T) {
 		lockedHeader := makeTestHeaderData(true, 42)
 		soleHeader := makeTestHeaderData(false, 1)
-		validEntry := makeTestEntryData(OpRemove, 7, 13)
-		invalidEntry := makeTestEntryData(OpRemove, 7, 13)
+		validEntry := makeTestEntryData(domain.DeltaOpRemove, 7, 13)
+		invalidEntry := makeTestEntryData(domain.DeltaOpRemove, 7, 13)
 		invalidEntry[len(invalidEntry)-1] = 0 // Checksum
 		fileData := append(append(lockedHeader, validEntry...), invalidEntry...)
 		expected := append(soleHeader, validEntry...)

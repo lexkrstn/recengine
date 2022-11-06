@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"recengine/internal/domain/entities"
+	"recengine/internal/domain"
 	"reflect"
 )
 
 // Binary ("like") implementation of IConcreteProtocol.
 type likeProtocol struct{}
 
-// Compile-type type check
+// Compile-time type check
 var _ = (ConcreteProtocol)((*likeProtocol)(nil))
 
 // Instantiates a LikeProtocol.
@@ -53,7 +53,7 @@ func (p *likeProtocol) ReadEntryData(entry *Entry, reader io.Reader) (int, error
 		return 0, err
 	}
 	// Update entry.Data
-	entry.Data = &entities.Profile{
+	entry.Data = &domain.Profile{
 		UserID:   userId,
 		Likes:    likes,
 		Dislikes: dislikes,
@@ -75,7 +75,7 @@ func (p *likeProtocol) ReadEntryData(entry *Entry, reader io.Reader) (int, error
 // The data length cannot be greater than `Entry.Capacity`.
 func (p *likeProtocol) WriteEntryData(entry *Entry, writer io.Writer) (int, error) {
 	// Get profile
-	profile, ok := entry.Data.(*entities.Profile)
+	profile, ok := entry.Data.(*domain.Profile)
 	if !ok {
 		return 0, fmt.Errorf(
 			"entry's data type doesn't represent like profile, got %s",
@@ -116,7 +116,7 @@ func (p *likeProtocol) GetEntryType() [8]byte {
 
 // Returns the minimum number of bytes it the entry will span after serialization.
 func (p *likeProtocol) PredictDataSize(data any) (int, error) {
-	profile, ok := data.(*entities.Profile)
+	profile, ok := data.(*domain.Profile)
 	if !ok {
 		return 0, errors.New("unknown data type")
 	}

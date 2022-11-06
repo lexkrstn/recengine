@@ -5,22 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"recengine/internal/domain"
 )
-
-// Database index storage.
-type Storage interface {
-	// Closes the storage file.
-	Close() error
-
-	// Returns the index associated with the specified ID.
-	Get(id uint64) (uint64, bool)
-
-	// Associates an index with an ID.
-	Put(id uint64, index uint64) error
-
-	// Removes an index from the database.
-	Remove(id uint64) error
-}
 
 // Implements database index storage.
 type storage struct {
@@ -30,8 +16,8 @@ type storage struct {
 	proto   Protocol
 }
 
-// Compile-type type check
-var _ = (Storage)((*storage)(nil))
+// Compile-time type check
+var _ = (domain.IndexStorage)((*storage)(nil))
 
 // Creates a new index file by the specified path.
 func (s *storage) create() error {

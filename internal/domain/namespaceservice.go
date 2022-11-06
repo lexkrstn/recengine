@@ -1,11 +1,10 @@
-package services
+package domain
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"recengine/internal/domain/entities"
 	"recengine/internal/domain/valueobjects"
 	"recengine/internal/helpers"
 )
@@ -27,33 +26,44 @@ type NamespaceUpdateRequest struct {
 
 // Manages namespaces.
 type NamespaceService struct {
-	namespaces []entities.Namespace
-	context    context.Context
-	basePath   string
+	namespaces          []Namespace
+	context             context.Context
+	basePath            string
+	deltaStorageFactory DeltaStorageFactory
+	indexStorageFactory IndexStorageFactory
 }
 
 // Creates a NamespaceService.
-func NewNamespaceService(context context.Context) *NamespaceService {
+func NewNamespaceService(
+	context context.Context,
+	deltaStorageFactory DeltaStorageFactory,
+	indexStorageFactory IndexStorageFactory,
+) *NamespaceService {
 	basePath := os.Getenv("REC_PATH")
 	if basePath != "" && basePath[len(basePath)-1] != '/' {
 		basePath = basePath + "/"
 	}
 	return &NamespaceService{
-		namespaces: make([]entities.Namespace, 0),
-		context:    context,
-		basePath:   basePath,
+		namespaces:          make([]Namespace, 0),
+		context:             context,
+		basePath:            basePath,
+		deltaStorageFactory: deltaStorageFactory,
+		indexStorageFactory: indexStorageFactory,
 	}
 }
 
 // Namespace's factory function.
-func (s *NamespaceService) forgeNamespace(dto *NamespaceCreateRequest) (entities.Namespace, error) {
+func (s *NamespaceService) forgeNamespace(dto *NamespaceCreateRequest) (Namespace, error) {
 	switch dto.Type.Value() {
 	case valueobjects.NamespaceTypeLike:
-		ns := entities.NewLikeNamespace(&entities.LikeNamespaceDto{
-			Name:               dto.Name,
-			MaxSimilarProfiles: dto.MaxSimilarProfiles,
-			DislikeFactor:      dto.DislikeFactor,
-		})
+		dto := LikeNamespaceDto{
+			Name:                dto.Name,
+			MaxSimilarProfiles:  dto.MaxSimilarProfiles,
+			DislikeFactor:       dto.DislikeFactor,
+			DeltaStorageFactory: s.deltaStorageFactory,
+			IndexStorageFactory: s.indexStorageFactory,
+		}
+		ns := NewLikeNamespace(&dto)
 		return ns, nil
 	default:
 		return nil, fmt.Errorf("unknown domain type %s", dto.Type)
@@ -103,7 +113,7 @@ func (s *NamespaceService) SaveNamespaces() error {
 }
 
 // Returns the list of currently loaded namespaces.
-func (s *NamespaceService) GetNamespaces() []entities.Namespace {
+func (s *NamespaceService) GetNamespaces() []Namespace {
 	return s.namespaces
 }
 
@@ -118,7 +128,7 @@ func (s *NamespaceService) getNamespaceIndexByName(name valueobjects.NamespaceNa
 }
 
 // Returns the pointer to the namespace by its name, or nil if not found.
-func (s *NamespaceService) GetNamespaceByName(name valueobjects.NamespaceName) entities.Namespace {
+func (s *NamespaceService) GetNamespaceByName(name valueobjects.NamespaceName) Namespace {
 	index := s.getNamespaceIndexByName(name)
 	if index < 0 {
 		return nil
@@ -129,7 +139,7 @@ func (s *NamespaceService) GetNamespaceByName(name valueobjects.NamespaceName) e
 // Adds domain registration to the engine and persists the change.
 func (s *NamespaceService) CreateNamespace(
 	dto *NamespaceCreateRequest,
-) (entities.Namespace, error) {
+) (Namespace, error) {
 	if s.getNamespaceIndexByName(dto.Name) >= 0 {
 		return nil, fmt.Errorf("namespace name %s is already taken", dto.Name)
 	}
@@ -148,7 +158,7 @@ func (s *NamespaceService) CreateNamespace(
 func (s *NamespaceService) UpdateNamespace(
 	name valueobjects.NamespaceName,
 	dto *NamespaceUpdateRequest,
-) (entities.Namespace, error) {
+) (Namespace, error) {
 	ns := s.GetNamespaceByName(name)
 	if ns == nil {
 		return nil, fmt.Errorf("namespace %s not found", name)
