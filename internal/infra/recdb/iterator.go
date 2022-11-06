@@ -8,18 +8,38 @@ import (
 )
 
 // The database entry iterator.
-type Iterator struct {
+type Iterator interface {
+	// Sets the iterator pointer to the beginging of the entries.
+	Rewind() error
+
+	// Returns true if there is at least one entry that can be got by GetNext().
+	HasNext() bool
+
+	// Returns the current entry and iterates next.
+	// The returned entry pointer shouldn't be changed or taken over: it points to
+	// the same struct in memory in every iteration.
+	Next() (*Entry, error)
+
+	// Rewrites a previously read entry. The capacity must be left unchanged.
+	SetPrevious(entry *Entry) error
+}
+
+// The database entry iterator.
+type iterator struct {
 	header     *Header
 	file       io.ReadWriteSeeker
 	reader     *bufio.Reader
 	entryIndex int
 	fileOffset int64
 	entry      Entry
-	proto      IProtocol
+	proto      Protocol
 }
 
+// Compile-type type check
+var _ = (Iterator)((*iterator)(nil))
+
 // Creates a new database entry iterator.
-func NewIterator(file io.ReadWriteSeeker, proto IProtocol) (*Iterator, error) {
+func NewIterator(file io.ReadWriteSeeker, proto Protocol) (Iterator, error) {
 	_, err := file.Seek(0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to rewind DB iterator: %v", err)
@@ -37,12 +57,12 @@ func NewIterator(file io.ReadWriteSeeker, proto IProtocol) (*Iterator, error) {
 		return nil, NewLockedFileError()
 	}
 	reader := bufio.NewReader(file)
-	iter := &Iterator{&header, file, reader, 0, 0, Entry{}, proto}
+	iter := &iterator{&header, file, reader, 0, 0, Entry{}, proto}
 	return iter, nil
 }
 
 // Sets the iterator pointer to the beginging of the entries.
-func (iter *Iterator) Rewind() error {
+func (iter *iterator) Rewind() error {
 	var err error
 	iter.fileOffset, err = iter.file.Seek(int64(entriesOffset), 0)
 	iter.entryIndex = 0
@@ -54,14 +74,14 @@ func (iter *Iterator) Rewind() error {
 }
 
 // Returns true if there is at least one entry that can be got by GetNext().
-func (iter *Iterator) HasNext() bool {
+func (iter *iterator) HasNext() bool {
 	return iter.entryIndex < int(iter.header.NumEntries)
 }
 
 // Returns the current entry and iterates next.
 // The returned entry pointer shouldn't be changed or taken over: it points to
 // the same struct in memory in every iteration.
-func (iter *Iterator) Next() (*Entry, error) {
+func (iter *iterator) Next() (*Entry, error) {
 	if !iter.HasNext() {
 		return nil, errors.New("failed to iterate next: the last entry reached")
 	}
@@ -76,7 +96,7 @@ func (iter *Iterator) Next() (*Entry, error) {
 }
 
 // Rewrites a previously read entry. The capacity must be left unchanged.
-func (iter *Iterator) SetPrevious(entry *Entry) error {
+func (iter *iterator) SetPrevious(entry *Entry) error {
 	const msg = "failed to SetPrevious: %v"
 	if iter.entryIndex == 0 {
 		return errors.New("failed to set previous entry: at the start")

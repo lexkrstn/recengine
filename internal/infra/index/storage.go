@@ -8,26 +8,33 @@ import (
 )
 
 // Database index storage.
-type IStorage interface {
+type Storage interface {
+	// Closes the storage file.
 	Close() error
+
+	// Returns the index associated with the specified ID.
 	Get(id uint64) (uint64, bool)
+
+	// Associates an index with an ID.
 	Put(id uint64, index uint64) error
+
+	// Removes an index from the database.
 	Remove(id uint64) error
 }
 
 // Implements database index storage.
-type Storage struct {
+type storage struct {
 	file    io.ReadWriteSeeker
 	closer  io.Closer
 	indices map[uint64]uint64
-	proto   IProtocol
+	proto   Protocol
 }
 
 // Compile-type type check
-var _ = (IStorage)((*Storage)(nil))
+var _ = (Storage)((*storage)(nil))
 
 // Creates a new index file by the specified path.
-func (s *Storage) create() error {
+func (s *storage) create() error {
 	writer := bufio.NewWriter(s.file)
 	// Prefix
 	_, err := s.proto.WritePrefix(writer)
@@ -49,7 +56,7 @@ func (s *Storage) create() error {
 }
 
 // Loads the index file into memory.
-func (s *Storage) load() error {
+func (s *storage) load() error {
 	_, err := s.file.Seek(0, io.SeekStart)
 	if err != nil {
 		return err
@@ -89,7 +96,7 @@ func (s *Storage) load() error {
 }
 
 // Closes the storage file.
-func (s *Storage) Close() error {
+func (s *storage) Close() error {
 	err := s.saveHeader(false)
 	if err != nil {
 		if s.closer != nil {
@@ -111,7 +118,7 @@ func (s *Storage) Close() error {
 }
 
 // Saves the header corresponding to the current state of the storage.
-func (s *Storage) saveHeader(locked bool) error {
+func (s *storage) saveHeader(locked bool) error {
 	lockedByte := byte(0)
 	if locked {
 		lockedByte = 1
@@ -140,7 +147,7 @@ func (s *Storage) saveHeader(locked bool) error {
 }
 
 // Saves cached entries into the disk.
-func (s *Storage) saveEntries() error {
+func (s *storage) saveEntries() error {
 	_, err := s.file.Seek(int64(entriesOffset), io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("failed to seek: %v", err)
@@ -163,20 +170,20 @@ func (s *Storage) saveEntries() error {
 }
 
 // Returns the index associated with the specified ID.
-func (s *Storage) Get(id uint64) (uint64, bool) {
+func (s *storage) Get(id uint64) (uint64, bool) {
 	idx, ok := s.indices[id]
 	return idx, ok
 }
 
 // Associates an index with an ID.
-func (s *Storage) Put(id uint64, index uint64) error {
+func (s *storage) Put(id uint64, index uint64) error {
 	// Update the in-memory map
 	s.indices[id] = index
 	return nil
 }
 
 // Removes an index from the database.
-func (s *Storage) Remove(id uint64) error {
+func (s *storage) Remove(id uint64) error {
 	if _, hasIndex := s.indices[id]; !hasIndex {
 		return nil
 	}

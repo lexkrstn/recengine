@@ -10,20 +10,20 @@ import (
 )
 
 // Binary ("like") implementation of IConcreteProtocol.
-type LikeProtocol struct{}
+type likeProtocol struct{}
 
 // Compile-type type check
-var _ = (IConcreteProtocol)((*LikeProtocol)(nil))
+var _ = (ConcreteProtocol)((*likeProtocol)(nil))
 
 // Instantiates a LikeProtocol.
-func NewLikeProtocol() IConcreteProtocol {
-	return &LikeProtocol{}
+func NewLikeProtocol() ConcreteProtocol {
+	return &likeProtocol{}
 }
 
 // Reads entry data filling the `Entry.Data` struct.
 // Returns the number of the bytes having read.
 // The returned size can vary from 0 to `Entry.Capacity`.
-func (p *LikeProtocol) ReadEntryData(entry *Entry, reader io.Reader) (int, error) {
+func (p *likeProtocol) ReadEntryData(entry *Entry, reader io.Reader) (int, error) {
 	// Read user ID
 	var userId uint64
 	err := binary.Read(reader, binary.BigEndian, &userId)
@@ -73,7 +73,7 @@ func (p *LikeProtocol) ReadEntryData(entry *Entry, reader io.Reader) (int, error
 // Writes entry data from the `Entry.Data` field into the stream.
 // Returns the number of the bytes having read.
 // The data length cannot be greater than `Entry.Capacity`.
-func (p *LikeProtocol) WriteEntryData(entry *Entry, writer io.Writer) (int, error) {
+func (p *likeProtocol) WriteEntryData(entry *Entry, writer io.Writer) (int, error) {
 	// Get profile
 	profile, ok := entry.Data.(*entities.Profile)
 	if !ok {
@@ -110,12 +110,12 @@ func (p *LikeProtocol) WriteEntryData(entry *Entry, writer io.Writer) (int, erro
 
 // Returns the type code of the data stored in the `Entry.Data` field of
 // entries of the database file type that is handled by this implementation.
-func (p *LikeProtocol) GetEntryType() [8]byte {
+func (p *likeProtocol) GetEntryType() [8]byte {
 	return [...]byte{'L', 'I', 'K', 'E', ' ', ' ', ' ', ' '}
 }
 
 // Returns the minimum number of bytes it the entry will span after serialization.
-func (p *LikeProtocol) PredictDataSize(data any) (int, error) {
+func (p *likeProtocol) PredictDataSize(data any) (int, error) {
 	profile, ok := data.(*entities.Profile)
 	if !ok {
 		return 0, errors.New("unknown data type")

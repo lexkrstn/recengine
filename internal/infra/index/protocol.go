@@ -39,25 +39,47 @@ type Entry struct {
 }
 
 // Provides index file functions.
-type IProtocol interface {
+type Protocol interface {
+	// Writes the file prefix, aka "Magic number", which verifies type of the file.
 	WritePrefix(writer io.Writer) (int, error)
+
+	// Reads the file prefix, aka "Magic number", which verifies type of the file.
 	ReadPrefix(reader io.Reader) (int, error)
+
+	// Writes file header (without the prefix).
 	WriteHeader(header *Header, writer io.Writer) (int, error)
+
+	// Reads database header (without the prefix).
 	ReadHeader(header *Header, reader io.Reader) (int, error)
+
+	// Writes a file entry. Returns number of bytes written.
 	WriteEntry(entry *Entry, writer io.Writer) (int, error)
+
+	// Reads a database entry. Returns the number of bytes read.
 	ReadEntry(entry *Entry, reader io.Reader) (int, error)
+
+	// Writes the "locked" field of the file's header without changing file
+	// pointer position.
 	WriteLocked(locked bool, file io.WriteSeeker) error
+
+	// Checks whether the index file has the locked field set true without changing
+	// the file pointer.
 	IsLocked(file io.ReadSeeker) (bool, error)
 }
 
 // Implements delta file functions.
-type Protocol struct{}
+type protocol struct{}
 
 // Compile-type type check
-var _ = (IProtocol)((*Protocol)(nil))
+var _ = (Protocol)((*protocol)(nil))
+
+// Returns a new Protocol instance.
+func NewProtocol() Protocol {
+	return &protocol{}
+}
 
 // Writes the file prefix, aka "Magic number", which verifies type of the file.
-func (p *Protocol) WritePrefix(writer io.Writer) (int, error) {
+func (p *protocol) WritePrefix(writer io.Writer) (int, error) {
 	n, err := writer.Write(prefix[:])
 	if err != nil {
 		return 0, err
@@ -66,7 +88,7 @@ func (p *Protocol) WritePrefix(writer io.Writer) (int, error) {
 }
 
 // Reads the file prefix, aka "Magic number", which verifies type of the file.
-func (p *Protocol) ReadPrefix(reader io.Reader) (int, error) {
+func (p *protocol) ReadPrefix(reader io.Reader) (int, error) {
 	buffer := make([]byte, len(prefix))
 	n, err := io.ReadFull(reader, buffer)
 	if err != nil {
@@ -79,7 +101,7 @@ func (p *Protocol) ReadPrefix(reader io.Reader) (int, error) {
 }
 
 // Writes file header (without the prefix).
-func (p *Protocol) WriteHeader(header *Header, writer io.Writer) (int, error) {
+func (p *protocol) WriteHeader(header *Header, writer io.Writer) (int, error) {
 	err := binary.Write(writer, binary.BigEndian, header.Version)
 	if err != nil {
 		return 0, err
@@ -96,7 +118,7 @@ func (p *Protocol) WriteHeader(header *Header, writer io.Writer) (int, error) {
 }
 
 // Reads database header (without the prefix).
-func (p *Protocol) ReadHeader(header *Header, reader io.Reader) (int, error) {
+func (p *protocol) ReadHeader(header *Header, reader io.Reader) (int, error) {
 	buffer := make([]byte, headerSize)
 	n, err := io.ReadFull(reader, buffer)
 	if err != nil {
@@ -109,7 +131,7 @@ func (p *Protocol) ReadHeader(header *Header, reader io.Reader) (int, error) {
 }
 
 // Writes a file entry. Returns number of bytes written.
-func (p *Protocol) WriteEntry(entry *Entry, writer io.Writer) (int, error) {
+func (p *protocol) WriteEntry(entry *Entry, writer io.Writer) (int, error) {
 	err := binary.Write(writer, binary.BigEndian, entry.ID)
 	if err != nil {
 		return 0, err
@@ -122,7 +144,7 @@ func (p *Protocol) WriteEntry(entry *Entry, writer io.Writer) (int, error) {
 }
 
 // Reads a database entry. Returns the number of bytes read.
-func (p *Protocol) ReadEntry(entry *Entry, reader io.Reader) (int, error) {
+func (p *protocol) ReadEntry(entry *Entry, reader io.Reader) (int, error) {
 	// Read "id"
 	err := binary.Read(reader, binary.BigEndian, &entry.ID)
 	if err != nil {
@@ -138,7 +160,7 @@ func (p *Protocol) ReadEntry(entry *Entry, reader io.Reader) (int, error) {
 
 // Writes the "locked" field of the file's header without changing file
 // pointer position.
-func (p *Protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
+func (p *protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return err
@@ -164,7 +186,7 @@ func (p *Protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
 
 // Checks whether the index file has the locked field set true without changing
 // the file pointer.
-func (p *Protocol) IsLocked(file io.ReadSeeker) (bool, error) {
+func (p *protocol) IsLocked(file io.ReadSeeker) (bool, error) {
 	// Save current position
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {

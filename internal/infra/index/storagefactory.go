@@ -7,35 +7,40 @@ import (
 )
 
 // Index storage factory.
-type IStorageFactory interface {
-	OpenFile(filePath string) (*Storage, error)
-	Open(file io.ReadWriteSeeker, closer io.Closer) (*Storage, error)
+type StorageFactory interface {
+	// Opens an index file by the specified path. If the file doesn't exist yet
+	// it will be created.
+	OpenFile(filePath string) (*storage, error)
+
+	// Opens an index file by the specified path. If the file doesn't exist yet
+	// it will be created.
+	Open(file io.ReadWriteSeeker, closer io.Closer) (*storage, error)
 }
 
 // Index storage factory.
-type StorageFactory struct {
-	IStorageFactory
-	proto IProtocol
+type storageFactory struct {
+	StorageFactory
+	proto Protocol
 }
 
 // Compile-type type check
-var _ = (IStorageFactory)((*StorageFactory)(nil))
+var _ = (StorageFactory)((*storageFactory)(nil))
 
 // Instantiates an index storage factory.
-func NewFactory() IStorageFactory {
-	return NewFactoryForProtocol(&Protocol{})
+func NewStorageFactory() StorageFactory {
+	return NewStorageFactoryForProtocol(NewProtocol())
 }
 
 // Instantiates an index storage factory.
-func NewFactoryForProtocol(proto IProtocol) IStorageFactory {
-	return &StorageFactory{
+func NewStorageFactoryForProtocol(proto Protocol) StorageFactory {
+	return &storageFactory{
 		proto: proto,
 	}
 }
 
 // Opens an index file by the specified path. If the file doesn't exist yet
 // it will be created.
-func (f *StorageFactory) OpenFile(filePath string) (*Storage, error) {
+func (f *storageFactory) OpenFile(filePath string) (*storage, error) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
@@ -46,8 +51,8 @@ func (f *StorageFactory) OpenFile(filePath string) (*Storage, error) {
 
 // Opens an index file by the specified path. If the file doesn't exist yet
 // it will be created.
-func (f *StorageFactory) Open(file io.ReadWriteSeeker, closer io.Closer) (*Storage, error) {
-	storage := &Storage{
+func (f *storageFactory) Open(file io.ReadWriteSeeker, closer io.Closer) (*storage, error) {
+	storage := &storage{
 		file:    file,
 		closer:  closer,
 		indices: make(map[uint64]uint64),

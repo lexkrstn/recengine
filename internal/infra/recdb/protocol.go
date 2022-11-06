@@ -63,7 +63,7 @@ type Entry struct {
 }
 
 // Concrete protocol implementations (e.g. LikeProtocol) must implement this interface.
-type IConcreteProtocol interface {
+type ConcreteProtocol interface {
 	// Reads entry data filling the `Entry.Data` struct.
 	// Returns the number of the bytes having read.
 	// The returned size can vary from 0 to `Entry.Capacity`.
@@ -84,7 +84,7 @@ type IConcreteProtocol interface {
 
 // Provides recommendation DB file functions.
 // The protocol doesn't know about concrete implementation of Entry data.
-type IProtocol interface {
+type Protocol interface {
 	// Initializes an empty database.
 	Create(writer io.Writer) error
 
@@ -127,23 +127,23 @@ type IProtocol interface {
 
 // Implements abstract recommendation DB file functions.
 // The protocol doesn't know about concrete implementation of Entry data.
-type Protocol struct {
-	concreteProto IConcreteProtocol
+type protocol struct {
+	concreteProto ConcreteProtocol
 }
 
 // Compile-type type check
-var _ = (IProtocol)((*Protocol)(nil))
+var _ = (Protocol)((*protocol)(nil))
 
 // Instantiates a new protocol functions implementation using a concrete
 // implementation of reading and writing entry data.
-func NewProtocol(concreteProto IConcreteProtocol) IProtocol {
-	return &Protocol{
+func NewProtocol(concreteProto ConcreteProtocol) Protocol {
+	return &protocol{
 		concreteProto: concreteProto,
 	}
 }
 
 // Initializes an empty database.
-func (p *Protocol) Create(writer io.Writer) error {
+func (p *protocol) Create(writer io.Writer) error {
 	bufWriter := bufio.NewWriter(writer)
 	_, err := p.WritePrefix(bufWriter)
 	if err != nil {
@@ -161,7 +161,7 @@ func (p *Protocol) Create(writer io.Writer) error {
 // The second argument declares what entry type can be  stored within the
 // database file (e.g. like or rating profiles). The function returns a
 // pointer to the file opened in read-only mode.
-func (p *Protocol) OpenOrCreateFile(filePath string) (*os.File, error) {
+func (p *protocol) OpenOrCreateFile(filePath string) (*os.File, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -183,7 +183,7 @@ func (p *Protocol) OpenOrCreateFile(filePath string) (*os.File, error) {
 }
 
 // Writes database prefix, aka "Magic number", which verifies type of the file.
-func (p *Protocol) WritePrefix(writer io.Writer) (int, error) {
+func (p *protocol) WritePrefix(writer io.Writer) (int, error) {
 	n, err := writer.Write(prefix[:])
 	if err != nil {
 		return 0, fmt.Errorf("failed to write RECDB prefix: %v", err)
@@ -193,7 +193,7 @@ func (p *Protocol) WritePrefix(writer io.Writer) (int, error) {
 
 // Reads database prefix, aka "Magic number", which verifies type of the file.
 // Returns an error if the prefix is incorrect.
-func (p *Protocol) ReadPrefix(reader io.Reader) (int, error) {
+func (p *protocol) ReadPrefix(reader io.Reader) (int, error) {
 	buffer := make([]byte, len(prefix))
 	n, err := io.ReadFull(reader, buffer)
 	if err != nil {
@@ -206,7 +206,7 @@ func (p *Protocol) ReadPrefix(reader io.Reader) (int, error) {
 }
 
 // Writes database header (without the prefix).
-func (p *Protocol) WriteHeader(header *Header, writer io.Writer) (int, error) {
+func (p *protocol) WriteHeader(header *Header, writer io.Writer) (int, error) {
 	buffer := make([]byte, 0, headerSize)
 	buffer = append(buffer, header.Version)
 	buffer = append(buffer, header.EntryType[:]...)
@@ -220,7 +220,7 @@ func (p *Protocol) WriteHeader(header *Header, writer io.Writer) (int, error) {
 }
 
 // Reads database header (without the prefix).
-func (p *Protocol) ReadHeader(header *Header, reader io.Reader) (int, error) {
+func (p *protocol) ReadHeader(header *Header, reader io.Reader) (int, error) {
 	buffer := make([]byte, headerSize)
 	n, err := io.ReadFull(reader, buffer)
 	if err != nil {
@@ -236,7 +236,7 @@ func (p *Protocol) ReadHeader(header *Header, reader io.Reader) (int, error) {
 // Writes a database entry. Returns number of bytes written.
 // The last argument is a callback function that must write the type-specific
 // Data field into the stream and return the number of bytes written.
-func (p *Protocol) WriteEntry(entry *Entry, writer io.Writer) (int, error) {
+func (p *protocol) WriteEntry(entry *Entry, writer io.Writer) (int, error) {
 	const msg = "failed to write database entry: %w"
 	err := binary.Write(writer, binary.BigEndian, entry.Capacity)
 	if err != nil {
@@ -264,7 +264,7 @@ func (p *Protocol) WriteEntry(entry *Entry, writer io.Writer) (int, error) {
 // Reads a database entry. Returns number of bytes read.
 // The last argument is a callback function that must read the type-specific
 // Data field from the stream and return the number of bytes read.
-func (p *Protocol) ReadEntry(entry *Entry, reader io.Reader) (int, error) {
+func (p *protocol) ReadEntry(entry *Entry, reader io.Reader) (int, error) {
 	const msg = "failed to read database entry: %v"
 	// Read Capacity
 	err := binary.Read(reader, binary.BigEndian, &entry.Capacity)
@@ -295,7 +295,7 @@ func (p *Protocol) ReadEntry(entry *Entry, reader io.Reader) (int, error) {
 
 // Writes the "locked" field of the file's header without changing file
 // pointer position.
-func (p *Protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
+func (p *protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return err
@@ -321,7 +321,7 @@ func (p *Protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
 
 // Checks whether the index file has the locked field set true without changing
 // the file pointer.
-func (p *Protocol) IsLocked(file io.ReadSeeker) (bool, error) {
+func (p *protocol) IsLocked(file io.ReadSeeker) (bool, error) {
 	// Save current position
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
@@ -346,7 +346,7 @@ func (p *Protocol) IsLocked(file io.ReadSeeker) (bool, error) {
 }
 
 // Returns the minimum number of bytes it the entry will span after serialization.
-func (p *Protocol) PredictEntrySize(entry *Entry) (int, error) {
+func (p *protocol) PredictEntrySize(entry *Entry) (int, error) {
 	size, err := p.concreteProto.PredictDataSize(entry.Data)
 	if err != nil {
 		return 0, fmt.Errorf("cannot predict data size: %w", err)
@@ -355,7 +355,7 @@ func (p *Protocol) PredictEntrySize(entry *Entry) (int, error) {
 }
 
 // Returns the optimal capacity for the entry in bytes.
-func (p *Protocol) PredictEntryCapacity(entry *Entry) (int, error) {
+func (p *protocol) PredictEntryCapacity(entry *Entry) (int, error) {
 	size, err := p.PredictEntrySize(entry)
 	if err != nil {
 		return 0, fmt.Errorf("cannot predict entry size: %w", err)

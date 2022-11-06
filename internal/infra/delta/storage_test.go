@@ -16,7 +16,7 @@ func makeTestHeaderData(locked bool, numEntries int) []byte {
 	}
 	file := helpers.NewFileBuffer(nil)
 	defer file.Close()
-	deltaFile := &Protocol{}
+	deltaFile := NewProtocol()
 	deltaFile.WritePrefix(file)
 	deltaFile.WriteHeader(hdr, file)
 	return file.Bytes()
@@ -28,7 +28,7 @@ func makeTestEntryData(op Operation, user uint64, item uint64) []byte {
 		UserID: user,
 		ItemID: item,
 	}
-	deltaFile := &Protocol{}
+	deltaFile := NewProtocol()
 	dto.Checksum = deltaFile.CalcEntryChecksum(dto)
 	file := helpers.NewFileBuffer(nil)
 	defer file.Close()
@@ -37,7 +37,7 @@ func makeTestEntryData(op Operation, user uint64, item uint64) []byte {
 }
 
 func TestClose(t *testing.T) {
-	factory := NewFactory()
+	factory := NewStorageFactory()
 
 	t.Run("the file should be unlocked after closed", func(t *testing.T) {
 		file := helpers.NewFileBuffer(nil)
@@ -51,7 +51,7 @@ func TestClose(t *testing.T) {
 			t.Errorf("Got error closing the file: %v", err)
 			return
 		}
-		deltaFile := &Protocol{}
+		deltaFile := NewProtocol()
 		locked, _ := deltaFile.IsLocked(file)
 		if locked {
 			t.Error("The file is locked")
@@ -100,7 +100,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	factory := NewFactory()
+	factory := NewStorageFactory()
 
 	t.Run("should add entries to local cache", func(t *testing.T) {
 		// Add items

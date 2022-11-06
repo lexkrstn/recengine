@@ -7,11 +7,11 @@ import (
 )
 
 func TestOpen(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 
 	t.Run("should create a storage that is locked until closed", func(t *testing.T) {
 		file := helpers.NewFileBuffer(nil)
-		factory := NewFactoryForProtocol(proto)
+		factory := NewStorageFactoryForProtocol(proto)
 		storage, err := factory.Open(file, nil)
 		if err != nil {
 			t.Errorf("Failed to open: %v", err)
@@ -54,7 +54,7 @@ func TestOpen(t *testing.T) {
 
 	t.Run("should open a storage that is locked until closed", func(t *testing.T) {
 		file := helpers.NewFileBuffer(nil)
-		factory := NewFactoryForProtocol(proto)
+		factory := NewStorageFactoryForProtocol(proto)
 		storage, err := factory.Open(file, nil)
 		if err != nil {
 			t.Errorf("Failed to open: %v", err)

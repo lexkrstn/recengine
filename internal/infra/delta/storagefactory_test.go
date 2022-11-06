@@ -7,7 +7,7 @@ import (
 )
 
 func TestRecover(t *testing.T) {
-	factory := NewFactory()
+	factory := NewStorageFactory()
 
 	t.Run("should recover corrupted files", func(t *testing.T) {
 		lockedHeader := makeTestHeaderData(true, 42)
@@ -30,7 +30,7 @@ func TestRecover(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
-	factory := NewFactory()
+	factory := NewStorageFactory()
 
 	t.Run("should create a new one if the file is empty", func(t *testing.T) {
 		expectedFileData := makeTestHeaderData(true, 0)
@@ -92,7 +92,7 @@ func TestOpen(t *testing.T) {
 			return
 		}
 		defer storage.Close()
-		deltaFile := &Protocol{}
+		deltaFile := NewProtocol()
 		locked, _ := deltaFile.IsLocked(file)
 		if !locked {
 			t.Error("The file is not locked")
@@ -101,7 +101,7 @@ func TestOpen(t *testing.T) {
 }
 
 func TestOpenMaybeRecover(t *testing.T) {
-	factory := NewFactory()
+	factory := NewStorageFactory()
 
 	t.Run("should recover corrupted files", func(t *testing.T) {
 		lockedHeader := makeTestHeaderData(true, 42)

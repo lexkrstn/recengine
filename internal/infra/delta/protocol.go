@@ -48,34 +48,66 @@ var prefix = [...]byte{'R', 'E', 'C', 'D', 'E', 'L', 'T', 'A'}
 const lockedOffset = len(prefix) + 1
 
 // Provides delta file functions.
-type IProtocol interface {
+type Protocol interface {
+	// Writes the file prefix, aka "Magic number", which verifies type of the file.
 	WritePrefix(writer io.Writer) error
+
+	// Reads the file prefix, aka "Magic number", which verifies type of the file.
 	ReadPrefix(reader io.Reader) error
+
+	// Writes file header (without the prefix).
 	WriteHeader(header *Header, writer io.Writer) error
+
+	// Reads database header (without the prefix).
 	ReadHeader(header *Header, reader io.Reader) error
+
+	// Calculates a byte checksum for an entry.
 	CalcEntryChecksum(entry *Entry) byte
+
+	// Writes a file entry. Returns number of bytes written.
 	WriteEntry(entry *Entry, writer io.Writer) error
+
+	// Reads a file entry. Returns the number of bytes read.
 	ReadEntry(entry *Entry, reader io.Reader) error
+
+	// Returns true if the checksum of the entry is valid or false otherwise.
 	ValidateEntryChecksum(entry *Entry) bool
+
+	// Writes the "locked" field of the file's header without changing file
+	// pointer position. The file is considered corrupted if it's not unlocked,
+	// which means it hasn't been closed properly.
 	WriteLocked(locked bool, file io.WriteSeeker) error
+
+	// Checks whether the file has the locked field set true without changing
+	// the file pointer. The file is considered corrupted if it's not unlocked,
+	// which means it hasn't been closed properly.
 	IsLocked(file io.ReadSeeker) (bool, error)
+
+	// Recovers a corrupted file making its data consistent. All inconsistent
+	// data is skipped. The file is considered corrupted if it's locked, which
+	// means it hasn't been closed properly.
 	RecoverTo(reader io.Reader, writer io.WriteSeeker) error
 }
 
 // Implements delta file functions.
-type Protocol struct{}
+type protocol struct{}
 
 // Compile-type type check
-var _ = (IProtocol)((*Protocol)(nil))
+var _ = (Protocol)((*protocol)(nil))
+
+// Returns new protocol instance.
+func NewProtocol() Protocol {
+	return &protocol{}
+}
 
 // Writes the file prefix, aka "Magic number", which verifies type of the file.
-func (p *Protocol) WritePrefix(writer io.Writer) error {
+func (p *protocol) WritePrefix(writer io.Writer) error {
 	_, err := writer.Write(prefix[:])
 	return err
 }
 
 // Reads the file prefix, aka "Magic number", which verifies type of the file.
-func (p *Protocol) ReadPrefix(reader io.Reader) error {
+func (p *protocol) ReadPrefix(reader io.Reader) error {
 	buffer := make([]byte, len(prefix))
 	_, err := io.ReadFull(reader, buffer)
 	if err != nil {
@@ -88,7 +120,7 @@ func (p *Protocol) ReadPrefix(reader io.Reader) error {
 }
 
 // Writes file header (without the prefix).
-func (p *Protocol) WriteHeader(header *Header, writer io.Writer) error {
+func (p *protocol) WriteHeader(header *Header, writer io.Writer) error {
 	err := binary.Write(writer, binary.BigEndian, header.Version)
 	if err != nil {
 		return err
@@ -101,7 +133,7 @@ func (p *Protocol) WriteHeader(header *Header, writer io.Writer) error {
 }
 
 // Reads database header (without the prefix).
-func (p *Protocol) ReadHeader(header *Header, reader io.Reader) error {
+func (p *protocol) ReadHeader(header *Header, reader io.Reader) error {
 	buffer := make([]byte, headerSize)
 	_, err := io.ReadFull(reader, buffer)
 	if err != nil {
@@ -114,7 +146,7 @@ func (p *Protocol) ReadHeader(header *Header, reader io.Reader) error {
 }
 
 // Returns a byte checksum for a qword value.
-func (p *Protocol) calcUint64Checksum(n uint64) byte {
+func (p *protocol) calcUint64Checksum(n uint64) byte {
 	b := make([]byte, 0, 8)
 	b = binary.BigEndian.AppendUint64(b, n)
 	var sum byte = 0
@@ -125,12 +157,12 @@ func (p *Protocol) calcUint64Checksum(n uint64) byte {
 }
 
 // Calculates a byte checksum for an entry.
-func (p *Protocol) CalcEntryChecksum(entry *Entry) byte {
+func (p *protocol) CalcEntryChecksum(entry *Entry) byte {
 	return byte(entry.Op) + p.calcUint64Checksum(entry.UserID) + p.calcUint64Checksum(entry.ItemID)
 }
 
 // Writes a file entry. Returns number of bytes written.
-func (p *Protocol) WriteEntry(entry *Entry, writer io.Writer) error {
+func (p *protocol) WriteEntry(entry *Entry, writer io.Writer) error {
 	err := binary.Write(writer, binary.BigEndian, entry.Op)
 	if err != nil {
 		return err
@@ -147,7 +179,7 @@ func (p *Protocol) WriteEntry(entry *Entry, writer io.Writer) error {
 }
 
 // Reads a file entry. Returns the number of bytes read.
-func (p *Protocol) ReadEntry(entry *Entry, reader io.Reader) error {
+func (p *protocol) ReadEntry(entry *Entry, reader io.Reader) error {
 	err := binary.Read(reader, binary.BigEndian, &entry.Op)
 	if err != nil {
 		return err
@@ -164,15 +196,14 @@ func (p *Protocol) ReadEntry(entry *Entry, reader io.Reader) error {
 }
 
 // Returns true if the checksum of the entry is valid or false otherwise.
-func (p *Protocol) ValidateEntryChecksum(entry *Entry) bool {
+func (p *protocol) ValidateEntryChecksum(entry *Entry) bool {
 	return p.CalcEntryChecksum(entry) == entry.Checksum
 }
 
 // Writes the "locked" field of the file's header without changing file
-// pointer position.
-// The file is considered corrupted if it's not unlocked, which means it hasn't
-// been closed properly.
-func (p *Protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
+// pointer position. The file is considered corrupted if it's not unlocked,
+// which means it hasn't been closed properly.
+func (p *protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return err
@@ -197,10 +228,9 @@ func (p *Protocol) WriteLocked(locked bool, file io.WriteSeeker) error {
 }
 
 // Checks whether the file has the locked field set true without changing
-// the file pointer.
-// The file is considered corrupted if it's not unlocked, which means it hasn't
-// been closed properly.
-func (p *Protocol) IsLocked(file io.ReadSeeker) (bool, error) {
+// the file pointer. The file is considered corrupted if it's not unlocked,
+// which means it hasn't been closed properly.
+func (p *protocol) IsLocked(file io.ReadSeeker) (bool, error) {
 	// Save current position
 	pos, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
@@ -224,11 +254,10 @@ func (p *Protocol) IsLocked(file io.ReadSeeker) (bool, error) {
 	return bytes[0] != 0, err
 }
 
-// Recovers a corrupted file making its data consistent.
-// All inconsistent data is skipped.
-// The file is considered corrupted if it's locked, which means it hasn't been
-// closed properly.
-func (p *Protocol) RecoverTo(reader io.Reader, writer io.WriteSeeker) error {
+// Recovers a corrupted file making its data consistent. All inconsistent
+// data is skipped. The file is considered corrupted if it's locked, which
+// means it hasn't been closed properly.
+func (p *protocol) RecoverTo(reader io.Reader, writer io.WriteSeeker) error {
 	hdr := Header{
 		Version:    Version,
 		Locked:     0,

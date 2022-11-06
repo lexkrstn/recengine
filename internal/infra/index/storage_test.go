@@ -7,8 +7,8 @@ import (
 )
 
 func TestPut(t *testing.T) {
-	proto := &Protocol{}
-	factory := NewFactoryForProtocol(proto)
+	proto := NewProtocol()
+	factory := NewStorageFactoryForProtocol(proto)
 
 	t.Run("should add index into the memory", func(t *testing.T) {
 		file := helpers.NewFileBuffer(nil)
@@ -97,8 +97,8 @@ func TestPut(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	proto := &Protocol{}
-	factory := NewFactoryForProtocol(proto)
+	proto := NewProtocol()
+	factory := NewStorageFactoryForProtocol(proto)
 
 	t.Run("should delete index from memory", func(t *testing.T) {
 		file := helpers.NewFileBuffer(nil)

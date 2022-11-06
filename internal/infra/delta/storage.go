@@ -26,13 +26,28 @@ type itemDelta struct {
 // which is immutable in its turn.
 // Rougly speaking, the delta file for a database is something like a patch file
 // for a Git branch.
-type IStorage interface {
+type Storage interface {
+	// Flushes the internal buffers.
 	Flush() error
+
+	// Closes the delta storage file.  The files not closed with this
+	// function are considered broken and require recovery.
 	Close() error
+
+	// Returns the number of users currently stored in the storage.
 	GetUserCount() int
+
+	// Returns the number of items currently stored in the storage.
 	GetTotalItemCount() int
+
+	// Returns the storage file size required to keep all the data.
 	GetFileSize() uint64
+
+	// Returns the last operation associated with the specified user-item pair.
+	// This method exists mostly for debugging and testing purposes.
 	Get(user uint64, item uint64) (Operation, bool)
+
+	// Adds an operation of item addition or removal to a user profile.
 	Add(op Operation, user uint64, item uint64)
 }
 
@@ -50,11 +65,11 @@ type storage struct {
 	// Storage file.
 	file RandomAccessFile
 	// Delta file functions.
-	proto IProtocol
+	proto Protocol
 }
 
 // Compile-type type check
-var _ = (IStorage)((*storage)(nil))
+var _ = (Storage)((*storage)(nil))
 
 // Rewrites file header with actual data.
 func (s *storage) flushHeader() error {
@@ -126,8 +141,8 @@ func (s *storage) Flush() error {
 	return nil
 }
 
-// Closes the delta storage file.
-// The files not closed with this function are considered broken and require recovery.
+// Closes the delta storage file.  The files not closed with this
+// function are considered broken and require recovery.
 func (s *storage) Close() error {
 	err := s.Flush()
 	if err != nil {
@@ -144,7 +159,7 @@ func (s *storage) Close() error {
 	return nil
 }
 
-// Returns the number of items currently stored in the storage.
+// Returns the number of users currently stored in the storage.
 func (s *storage) GetUserCount() int {
 	unflushedCount := 0
 	for user := range s.newDelta {

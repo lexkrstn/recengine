@@ -9,7 +9,7 @@ import (
 )
 
 func TestWritePrefix(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	buf := bytes.NewBuffer(nil)
 	err := proto.WritePrefix(buf)
 	if err != nil {
@@ -23,7 +23,7 @@ func TestWritePrefix(t *testing.T) {
 }
 
 func TestReadPrefix(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	reader := bytes.NewReader(append(prefix[:], 42))
 	err := proto.ReadPrefix(reader)
 	if err != nil {
@@ -38,7 +38,7 @@ func TestReadPrefix(t *testing.T) {
 }
 
 func TestWriteHeader(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	header := Header{1, 0, 42}
 	expected := []byte{1, 0, 0, 0, 0, 42}
 	buf := bytes.NewBuffer(nil)
@@ -54,7 +54,7 @@ func TestWriteHeader(t *testing.T) {
 }
 
 func TestReadHeader(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	data := []byte{2, 1, 0, 0, 0, 42}
 	expected := Header{2, 1, 42}
 	header := Header{}
@@ -76,7 +76,7 @@ func TestReadHeader(t *testing.T) {
 }
 
 func TestWriteEntry(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	entry := Entry{'-', 7, 13, 65}
 	expected := []byte{'-', 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13, 65}
 	buf := bytes.NewBuffer(nil)
@@ -92,7 +92,7 @@ func TestWriteEntry(t *testing.T) {
 }
 
 func TestReadEntry(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	data := []byte{'+', 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13, 65}
 	expected := Entry{'+', 7, 13, 65}
 	entry := Entry{}
@@ -114,7 +114,7 @@ func TestReadEntry(t *testing.T) {
 }
 
 func TestWriteLocked(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	unlockedHeader := append(prefix[:], 1, 0, 0, 0, 0, 42)
 	lockedHeader := append(prefix[:], 1, 1, 0, 0, 0, 42)
 	t.Run("should lock a file", func(t *testing.T) {
@@ -130,7 +130,7 @@ func TestWriteLocked(t *testing.T) {
 		}
 	})
 	t.Run("should unlock a file", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		buf := helpers.NewFileBuffer(append([]byte{}, lockedHeader...))
 		err := proto.WriteLocked(false, buf)
 		if err != nil {
@@ -145,7 +145,7 @@ func TestWriteLocked(t *testing.T) {
 }
 
 func TestIsLocked(t *testing.T) {
-	proto := &Protocol{}
+	proto := NewProtocol()
 	unlockedHeader := append(prefix[:], 1, 0, 0, 0, 0, 42)
 	lockedHeader := append(prefix[:], 1, 1, 0, 0, 0, 42)
 	t.Run("should return true for locked file", func(t *testing.T) {
@@ -161,7 +161,7 @@ func TestIsLocked(t *testing.T) {
 		}
 	})
 	t.Run("should return false for unlocked file", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		buf := helpers.NewFileBuffer(unlockedHeader)
 		locked, err := proto.IsLocked(buf)
 		if err != nil {
@@ -184,7 +184,7 @@ func TestRecoverTo(t *testing.T) {
 	halfEntry := []byte{'-', 0, 0, 0, 0, 0, 0, 0, 7, 0, 0}
 
 	t.Run("should recover from unexpected EOF in prefix", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		srcBuf := helpers.NewFileBuffer(prefix[:len(prefix)-2])
 		dstBuf := helpers.NewFileBuffer(nil)
 		err := proto.RecoverTo(srcBuf, dstBuf)
@@ -201,7 +201,7 @@ func TestRecoverTo(t *testing.T) {
 	})
 
 	t.Run("should recover from unexpected EOF in header", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		srcBuf := helpers.NewFileBuffer(lockedHeader[:len(lockedHeader)-2])
 		dstBuf := helpers.NewFileBuffer(nil)
 		err := proto.RecoverTo(srcBuf, dstBuf)
@@ -218,7 +218,7 @@ func TestRecoverTo(t *testing.T) {
 	})
 
 	t.Run("should recover from unexpected EOF in entry", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		halfEntryFileData := append(append(lockedHeader, validEntry...), halfEntry...)
 		expected := append(soleHeader, validEntry...)
 		srcBuf := helpers.NewFileBuffer(halfEntryFileData)
@@ -237,7 +237,7 @@ func TestRecoverTo(t *testing.T) {
 	})
 
 	t.Run("should recover from entry checksum mismatch", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		invalidEntryFileData := append(append(lockedHeader, validEntry...), invalidEntry...)
 		expected := append(soleHeader, validEntry...)
 		srcBuf := helpers.NewFileBuffer(invalidEntryFileData)
@@ -256,7 +256,7 @@ func TestRecoverTo(t *testing.T) {
 	})
 
 	t.Run("should recover from entry count mismatch", func(t *testing.T) {
-		proto := &Protocol{}
+		proto := NewProtocol()
 		fileData := append(emptyHeader, validEntry...)
 		expected := append(soleHeader, validEntry...)
 		srcBuf := helpers.NewFileBuffer(fileData)

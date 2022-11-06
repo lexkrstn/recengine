@@ -10,7 +10,7 @@ import (
 
 func TestWritePrefix(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	proto := &Protocol{}
+	proto := NewProtocol()
 	n, err := proto.WritePrefix(buf)
 	if err != nil {
 		t.Errorf("Got error: %v", err)
@@ -28,7 +28,7 @@ func TestWritePrefix(t *testing.T) {
 
 func TestReadPrefix(t *testing.T) {
 	reader := bytes.NewReader(append(prefix[:], 42))
-	proto := &Protocol{}
+	proto := NewProtocol()
 	n, err := proto.ReadPrefix(reader)
 	if err != nil {
 		t.Errorf("Got error: %v", err)
@@ -49,7 +49,7 @@ func TestWriteHeader(t *testing.T) {
 	header := Header{1, 0, 42}
 	expected := []byte{1, 0, 0, 0, 0, 42}
 	buf := bytes.NewBuffer(nil)
-	proto := &Protocol{}
+	proto := NewProtocol()
 	n, err := proto.WriteHeader(&header, buf)
 	if err != nil {
 		t.Errorf("Got error: %v", err)
@@ -70,7 +70,7 @@ func TestReadHeader(t *testing.T) {
 	expected := Header{2, 1, 42}
 	header := Header{}
 	reader := bytes.NewReader(append(data, 7))
-	proto := &Protocol{}
+	proto := NewProtocol()
 	n, err := proto.ReadHeader(&header, reader)
 	if err != nil {
 		t.Errorf("Got error: %v", err)
@@ -95,7 +95,7 @@ func TestWriteEntry(t *testing.T) {
 	entry := Entry{7, 13}
 	expected := []byte{0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 13}
 	buf := bytes.NewBuffer(nil)
-	proto := &Protocol{}
+	proto := NewProtocol()
 	n, err := proto.WriteEntry(&entry, buf)
 	if err != nil {
 		t.Errorf("Got error: %v", err)
@@ -116,7 +116,7 @@ func TestReadEntry(t *testing.T) {
 	expected := Entry{7, 13}
 	entry := Entry{}
 	reader := bytes.NewReader(append(data, 42))
-	proto := &Protocol{}
+	proto := NewProtocol()
 	n, err := proto.ReadEntry(&entry, reader)
 	if err != nil {
 		t.Errorf("Got error: %v", err)
@@ -142,7 +142,7 @@ func TestWriteLocked(t *testing.T) {
 	lockedHeader := append(prefix[:], 1, 1, 0, 0, 0, 42)
 	t.Run("should lock a file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(append([]byte{}, unlockedHeader...))
-		proto := &Protocol{}
+		proto := NewProtocol()
 		err := proto.WriteLocked(true, buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
@@ -155,7 +155,7 @@ func TestWriteLocked(t *testing.T) {
 	})
 	t.Run("should unlock a file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(append([]byte{}, lockedHeader...))
-		proto := &Protocol{}
+		proto := NewProtocol()
 		err := proto.WriteLocked(false, buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
@@ -173,7 +173,7 @@ func TestIsLocked(t *testing.T) {
 	lockedHeader := append(prefix[:], 1, 1, 0, 0, 0, 42)
 	t.Run("should return true for locked file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(lockedHeader)
-		proto := &Protocol{}
+		proto := NewProtocol()
 		locked, err := proto.IsLocked(buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
@@ -186,7 +186,7 @@ func TestIsLocked(t *testing.T) {
 	})
 	t.Run("should return false for unlocked file", func(t *testing.T) {
 		buf := helpers.NewFileBuffer(unlockedHeader)
-		proto := &Protocol{}
+		proto := NewProtocol()
 		locked, err := proto.IsLocked(buf)
 		if err != nil {
 			t.Errorf("Got error: %v", err)
